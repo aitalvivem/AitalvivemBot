@@ -40,7 +40,7 @@ def createLex(lexeme, lg):
 	# this function create a lexeme and return the id
 	S = requests.Session()
 	
-	URL = "https://www.wikidata.org/w/api.php"
+	# URL = "https://www.wikidata.org/w/api.php"
 	
 	# i set the id
 	id = 'L1234' # how could i know which id are free, and how to get them ?

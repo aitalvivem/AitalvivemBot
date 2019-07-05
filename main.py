@@ -12,7 +12,7 @@ file = open(fname, 'rt', encoding='utf-8')
 try:
 	lecteur = csv.reader(file, delimiter="§") 
 	# for row in lecteur:
-		# i retrieve the id of the lexeme (if the lexeme don't exists, i create it)
+		# i get the id of the lexeme (if the lexeme don't exists, i create it)
 		# idLex = functionmain.APIfunction.chercheLex(row[2], row[5])
                 
 		# if row[1] != row[2]
