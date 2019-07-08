@@ -95,7 +95,6 @@ def createLex(lexeme, lg):
 		'id': id,
 		'token': CSRF_TOKEN,
 		'data': data_lex 
-		# how do i set a reference to a 'Q###' code ?
 	}
 	
 	R = S.post(URL, data=PARAMS_4)
@@ -137,7 +136,7 @@ def getCat(cat):
 	and return the corresponding code in wikidata
 	'''
 
-	fname = '' # path to the file which contains the Congrès code matched with the wikidata code
+	fname = # PATH to the file which contains the Congrès code matched with the wikidata code
 	file = open(fname, 'rt', encoding='utf-8')
 	
 	catW = []
