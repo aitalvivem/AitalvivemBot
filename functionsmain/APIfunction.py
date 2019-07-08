@@ -2,6 +2,46 @@
 import requests
 import json
 
+def coApi(URL, S):
+	# this function connect the bot to a Wikidata acount and ask for CSRF token
+	
+	USER_NAME = 'AitalvivemBot'
+	USER_PASS = ''
+	
+	PARAMS_1 = {
+		'action': 'query',
+		'meta': 'tokens',
+		'type': 'login',
+		'format': 'json'
+	}
+
+	R = S.get(url=URL, params=PARAMS_1)
+	DATA = R.json()
+
+	LOGIN_TOKEN = DATA['query']['tokens']['logintoken']
+
+	PARAMS_2 = {
+		'action': 'login',
+		'lgname': USER_NAME,
+		'lgpassword': USER_PASS,
+		'format': 'json',
+		'lgtoken': LOGIN_TOKEN
+	}
+
+	R = S.post(URL, data=PARAMS_2)
+
+	PARAMS_3 = {
+		'action': 'query',
+		'meta': 'tokens',
+		'format': 'json'
+	}
+	
+	R = S.get(url=URL, params=PARAMS_3)
+	DATA = R.json()
+	CSRF_TOKEN = DATA['query']['tokens']['csrftoken']
+	
+	return CSRF_TOKEN
+
 def chercheLex(lexeme, lg):
 	'''
 	this function takes a lexeme and a language
@@ -10,7 +50,7 @@ def chercheLex(lexeme, lg):
 	'''
 	S = requests.Session()
 	
-	URL = "https://www.wikidata.org/w/api.php"
+	URL = "https://test.wikidata.org/w/api.php"
 	
 	# create the request
 	PARAMS = {
@@ -40,46 +80,9 @@ def createLex(lexeme, lg):
 	# this function create a lexeme and return the id
 	S = requests.Session()
 	
-	# URL = "https://www.wikidata.org/w/api.php"
+	URL = "https://test.wikidata.org/w/api.php"
 	
-	# i set the id
-	id = 'L1234' # how could i know which id are free, and how to get them ?
-	
-	# ask for a token
-	PARAMS_1 = {
-		'action': 'query',
-		'meta': 'tokens',
-		'type': 'login',
-		'format': 'json'
-	}
-
-	R = S.get(url=URL, params=PARAMS_1)
-	DATA = R.json()
-
-	LOGIN_TOKEN = DATA['query']['tokens']['logintoken']
-
-	# send a log request
-	PARAMS_2 = {
-		'action': 'login',
-		'lgname': 'AitalvivemBot',
-		'lgpassword': 'bv3s26snn5be9std93bmp93afcvh9sdj',
-		'format': 'json',
-		'lgtoken': LOGIN_TOKEN
-	}
-
-	R = S.post(URL, data=PARAMS_2)
-
-	# once connected, ask for a CSRF token
-	PARAMS_3 = {
-		'action': 'query',
-		'meta': 'tokens',
-		'format': 'json'
-	}
-
-	R = S.get(url=URL, params=PARAMS_3)
-	DATA = R.json()
-
-	CSRF_TOKEN = DATA['query']['tokens']['csrftoken']
+	CSRF_TOKEN = coApi(URL, S)
 	
 	# i create the json with the datas to import
 	data_lex = json.dumps({'labels':{lexeme:{'type':'lexeme', 'language':lg}}})
@@ -97,8 +100,7 @@ def createLex(lexeme, lg):
 	R = S.post(URL, data=PARAMS_4)
 	DATA = R.json()
 	
-	print('data = ')
-	print(DATA)
+	print('data = ', DATA)
 	
 	return id
 
