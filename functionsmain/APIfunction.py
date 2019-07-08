@@ -1,11 +1,12 @@
 #-*-coding:utf-8-*
 import requests
 import json
+import csv
 
 def coApi(URL, S):
 	# this function connect the bot to a Wikidata acount and ask for CSRF token
 	
-	USER_NAME = 'AitalvivemBot'
+	USER_NAME = ''
 	USER_PASS = ''
 	
 	PARAMS_1 = {
@@ -104,12 +105,50 @@ def createLex(lexeme, lg):
 	
 	return id
 
-# def createForm(idLex, form, catForm):
-	# not created yet
+def createForm(idLex, form, catForm, lg):
+	S = requests.Session()
+	
+	URL = "https://test.wikidata.org/w/api.php"
+	
+	CSRF_TOKEN = coApi(URL, S)
+	
+	catGramW = getCat(catForm)
 
-# def getCat(cat):
+	# i create the json with the datas to import
+	data_form = json.dumps({'representations':{lg:{'value':form, 'language': lg}}, 'grammaticalFeatures':catGramW}) 
+	
+	# i sent a post to add a form
+	PARAMS= {
+		'action': 'wbladdform',
+		'format': 'json',
+		'lexemeId' : idLex,
+		'token': CSRF_TOKEN,
+		'data': data_form
+	}
+	
+	R = S.post(URL, data=PARAMS)
+	DATA = R.json()
+	
+	return DATA
+
+def getCat(cat):
 	'''
 	this function takes the Congrès code for a grammatical category
 	and return the corresponding code in wikidata
 	'''
+
+	fname = '' # path to the file which contains the Congrès code matched with the wikidata code
+	file = open(fname, 'rt', encoding='utf-8')
 	
+	catW = []
+	
+	try:
+		lecteur = csv.reader(file, delimiter="§") 
+		for row in lecteur:
+			if row[0] == cat:
+				catW += [row[2]]
+		
+	finally:
+		file.close()
+
+	return catW
