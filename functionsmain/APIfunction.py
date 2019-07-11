@@ -4,11 +4,17 @@ import json
 import csv
 
 def coApi(URL, S):
-	# this function connect the bot to a Wikidata acount and ask for CSRF token
+# ----------------------------------------------------------------------------
+
+	# This function connect the Bot to a wikidata acount and ask for a CSRF token
 	
-	USER_NAME = ''
-	USER_PASS = ''
+# ----------------------------------------------------------------------------
+
+	# the connexion informations
+	USER_NAME = # USER_NAME
+	USER_PASS = # USER_PASS
 	
+	# ask for a token
 	PARAMS_1 = {
 		'action': 'query',
 		'meta': 'tokens',
@@ -21,6 +27,7 @@ def coApi(URL, S):
 
 	LOGIN_TOKEN = DATA['query']['tokens']['logintoken']
 
+	# connexion request
 	PARAMS_2 = {
 		'action': 'login',
 		'lgname': USER_NAME,
@@ -31,6 +38,7 @@ def coApi(URL, S):
 
 	R = S.post(URL, data=PARAMS_2)
 
+	# ask for a CSRF token
 	PARAMS_3 = {
 		'action': 'query',
 		'meta': 'tokens',
@@ -43,22 +51,26 @@ def coApi(URL, S):
 	
 	return CSRF_TOKEN
 
-def chercheLex(lexeme, lg):
-	'''
-	this function takes a lexeme and a language
-	return the corresponding id
-	if the lexeme does not exists, it calls the createLex function
-	'''
+def chercheLex(info, lg, catLex, catGram): 
+	
+# ----------------------------------------------------------------------------
+
+	# This function search for a lexeme in the wikidata database
+		# If the function find the lexeme it return the id
+		# else the function call the createLex function
+		
+# ----------------------------------------------------------------------------
+
 	S = requests.Session()
+	URL = "https://www.wikidata.org/w/api.php"
 	
-	URL = "https://test.wikidata.org/w/api.php"
-	
-	# create the request
+	# the request
 	PARAMS = {
 		'action':'wbsearchentities',
 		'language' : 'oc',
 		'type' : 'lexeme',
-		'search': lexeme,
+		'bot':'1',
+		'search': info,
 		'format':'json'
 	}
 
@@ -68,86 +80,174 @@ def chercheLex(lexeme, lg):
 	lexExists = 0
 
 	for item in DATA['search']:
-		# if th lexeme exists
-		if item['match']['text'] == lexeme and item['match']['language'] in lg:
-			return item['id']
+		# If thelexeme exists I return its id
+		if item['match']['text'] == info and item['match']['language'] in lg:
 			lexExists = 1
-	# else i create it		
+			return item['id']
+	
+	# else I create the lexeme and return the id
 	if lexExists == 0:
-		id = createLex(lexeme, lg)
-		return id
+		return createLex(info, lg, catLex, catGram)
 
-def createLex(lexeme, lg):
-	# this function create a lexeme and return the id
+def createLex(lexeme, lg, catLex, catGram): 
+
+# ----------------------------------------------------------------------------
+
+	# this function create a lexeme and return the id :
+		# 1)	translate the lexical category, the grammatical category and the 
+		# 		language to the relevant Wikidata's item id.
+		# 2)	create and send the request
+		# 3)	return the id
+
+# ----------------------------------------------------------------------------
+
 	S = requests.Session()
+	URL = "https://www.wikidata.org/w/api.php"
 	
-	URL = "https://test.wikidata.org/w/api.php"
-	
+	# connect and ask for a CSRF token
 	CSRF_TOKEN = coApi(URL, S)
 	
-	# i create the json with the datas to import
-	data_lex = json.dumps({'labels':{lexeme:{'type':'lexeme', 'language':lg}}})
+	# get the item's id for the lexical category, the grammatical category and the language
+	catLexW = getCat(catLex)
+	catGramW = detailCat(catGram)
+	
+	if lg == 'fr':
+		codeLg = 'Q150'
+	elif lg == 'oc':
+		codeLg ='Q14185'
+		
+	# I create the json with the lexeme's data
+	data_lex = json.dumps({'type':'lexeme',
+							'lemmas':{
+								lg:{
+									'value':lexeme, 
+									'language':lg
+								}
+							},
+							'language': codeLg,
+							'lexicalCategory':catLexW,
+							'forms':[
+								{
+									'add':'',
+									'representations':{
+										lg:{
+											'language': lg,
+											'value':lexeme
+										}
+									},
+									'grammaticalFeatures':catGramW,
+									'claims':[]
+								}
+							]
+						})
 
-	# i sent a post to edit a lexeme
-	PARAMS_4 = {
+	# send a post to edit a lexeme
+	PARAMS = {
 		'action': 'wbeditentity',
 		'format': 'json',
-		'id': id,
+		'new': 'lexeme',
+		'bot':'1',
 		'token': CSRF_TOKEN,
 		'data': data_lex 
 	}
 	
-	R = S.post(URL, data=PARAMS_4)
+	R = S.post(URL, data=PARAMS)
 	DATA = R.json()
 	
-	print('data = ', DATA)
-	
-	return id
+	return DATA['entity']['id']
 
 def createForm(idLex, form, catForm, lg):
+
+# ----------------------------------------------------------------------------
+
+	# this function create a form for a lexeme :
+		# 1)	translate the the grammatical category to the relevant 
+		# 		Wikidata's item id.
+		# 2)	create and send the request
+
+# ----------------------------------------------------------------------------
+
 	S = requests.Session()
+	URL = "https://www.wikidata.org/w/api.php"
 	
-	URL = "https://test.wikidata.org/w/api.php"
-	
+	# connect and ask for a CSRF token
 	CSRF_TOKEN = coApi(URL, S)
 	
-	catGramW = getCat(catForm)
+	# get the item's id for the grammatical category 
+	catGramW = detailCat(catForm)
 
-	# i create the json with the datas to import
+	# I create the json with the lexeme's data
 	data_form = json.dumps({'representations':{lg:{'value':form, 'language': lg}}, 'grammaticalFeatures':catGramW}) 
 	
-	# i sent a post to add a form
+	# send a post to edit a form
 	PARAMS= {
 		'action': 'wbladdform',
 		'format': 'json',
 		'lexemeId' : idLex,
 		'token': CSRF_TOKEN,
+		'bot':'1',
 		'data': data_form
 	}
 	
 	R = S.post(URL, data=PARAMS)
 	DATA = R.json()
 	
-	return DATA
-
 def getCat(cat):
-	'''
-	this function takes the Congrès code for a grammatical category
-	and return the corresponding code in wikidata
-	'''
 
-	fname = # PATH to the file which contains the Congrès code matched with the wikidata code
+# ----------------------------------------------------------------------------
+
+	# This function translate the the lexical category to the relevant 
+	# Wikidata's item id using a .csv file which matches the item's code with
+	# its lexical category.
+
+# ----------------------------------------------------------------------------
+
+	# open the .csv file
+	fname = # PATH
 	file = open(fname, 'rt', encoding='utf-8')
-	
-	catW = []
 	
 	try:
 		lecteur = csv.reader(file, delimiter="§") 
 		for row in lecteur:
 			if row[0] == cat:
-				catW += [row[2]]
+				catW = row[2]
 		
 	finally:
 		file.close()
 
 	return catW
+
+def detailCat(catDet):
+
+# ----------------------------------------------------------------------------
+	
+	# This function all the grammatical categories from a form and return a 
+	# list made of the relevant item's code, using a .csv file which matches 
+	# the item's code with its grammatical category.
+	
+# ----------------------------------------------------------------------------
+
+	list = []
+	
+	fname = # PATH
+	file = open(fname, 'rt', encoding='utf-8')
+	
+	try:
+		lecteur = csv.reader(file, delimiter=";") 
+		for row in lecteur:
+			if row[0] == catDet:
+				if row[2] != '':
+					list += [row[2]]
+				if row[3] != '':
+					list += [row[3]]
+				if row[4] != '':
+					list += [row[4]]
+				if row[5] != '':
+					list += [row[5]]
+
+	finally:
+		file.close()
+
+	return list
+	
+	
