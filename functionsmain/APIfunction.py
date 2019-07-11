@@ -221,9 +221,9 @@ def detailCat(catDet):
 
 # ----------------------------------------------------------------------------
 	
-	# This function all the grammatical categories from a form and return a 
-	# list made of the relevant item's code, using a .csv file which matches 
-	# the item's code with its grammatical category.
+	# This function takes all the grammatical categories from a form and 
+	# return a list made of the relevant item's code, using a .csv file 
+	# which matches the item's code with its grammatical category.
 	
 # ----------------------------------------------------------------------------
 
