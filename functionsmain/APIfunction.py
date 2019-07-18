@@ -2,13 +2,16 @@
 import requests
 import json
 import csv
+import re
+from SPARQLWrapper import SPARQLWrapper, JSON
 
 def coApi(URL, S):
-# ----------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	# This function connect the Bot to a wikidata acount and ask for a CSRF token
 	
-# ----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	# the connexion informations
 	USER_NAME = # USER_NAME
@@ -53,13 +56,13 @@ def coApi(URL, S):
 
 def chercheLex(info, lg, catLex, catGram): 
 	
-# ----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	# This function search for a lexeme in the wikidata database
 		# If the function find the lexeme it return the id
 		# else the function call the createLex function
 		
-# ----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	S = requests.Session()
 	URL = "https://www.wikidata.org/w/api.php"
@@ -77,29 +80,35 @@ def chercheLex(info, lg, catLex, catGram):
 	R = S.get(url=URL, params=PARAMS)
 	DATA = R.json()
 	
-	lexExists = 0
+	lexExists = False
+	catLexW = getCat(catLex)
 
 	for item in DATA['search']:
-		# If thelexeme exists I return its id
+		# If thelexeme exists I return the id
 		if item['match']['text'] == info and item['match']['language'] in lg:
-			lexExists = 1
-			return item['id']
+			lexQid = getQidCat(item['id'])
+			if catLexW == lexQid:
+				lexExists = True
+				idLex = item['id']
+				break
 	
 	# else I create the lexeme and return the id
-	if lexExists == 0:
+	if lexExists == False:
 		return createLex(info, lg, catLex, catGram)
+	else:
+		return idLex
 
 def createLex(lexeme, lg, catLex, catGram): 
 
-# ----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	# this function create a lexeme and return the id :
-		# 1)	translate the lexical category, the grammatical category and the 
-		# 		language to the relevant Wikidata's item id.
+		# 1)	translate the lexical category, the grammatical category and the language to the relevant Wikidata's item id.
 		# 2)	create and send the request
-		# 3)	return the id
+		# 3)	call setDial() to create a claim for the dialect
+		# 4)	return the id
 
-# ----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	S = requests.Session()
 	URL = "https://www.wikidata.org/w/api.php"
@@ -111,35 +120,37 @@ def createLex(lexeme, lg, catLex, catGram):
 	catLexW = getCat(catLex)
 	catGramW = detailCat(catGram)
 	
-	if lg == 'fr':
-		codeLg = 'Q150'
-	elif lg == 'oc':
+	if lg != 'fr':
+		dial = lg
+		lg = 'oc'
 		codeLg ='Q14185'
+	else:
+		codeLg = 'Q150'
 		
 	# I create the json with the lexeme's data
 	data_lex = json.dumps({'type':'lexeme',
-							'lemmas':{
+					'lemmas':{
+						lg:{
+							'value':lexeme, 
+							'language':lg
+						}
+					},
+					'language': codeLg,
+					'lexicalCategory':catLexW,
+					'forms':[
+						{
+							'add':'',
+							'representations':{
 								lg:{
-									'value':lexeme, 
-									'language':lg
+									'language': lg,
+									'value':lexeme
 								}
 							},
-							'language': codeLg,
-							'lexicalCategory':catLexW,
-							'forms':[
-								{
-									'add':'',
-									'representations':{
-										lg:{
-											'language': lg,
-											'value':lexeme
-										}
-									},
-									'grammaticalFeatures':catGramW,
-									'claims':[]
-								}
-							]
-						})
+							'grammaticalFeatures':catGramW,
+							'claims':[]
+						}
+					]
+				})
 
 	# send a post to edit a lexeme
 	PARAMS = {
@@ -154,24 +165,36 @@ def createLex(lexeme, lg, catLex, catGram):
 	R = S.post(URL, data=PARAMS)
 	DATA = R.json()
 	
-	return DATA['entity']['id']
+	# I get the id of the lexeme
+	idLex = DATA['entity']['id']
+	
+	# I add a claim for the dialectif it is needed
+	if lg == 'oc':
+		infoLex = getLex(idLex)
+		for form in infoLex['formes']:
+			setDial(form['idForm'], dial)
+	
+	return idLex
 
 def createForm(idLex, form, catForm, lg):
 
-# ----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	# this function create a form for a lexeme :
-		# 1)	translate the the grammatical category to the relevant 
-		# 		Wikidata's item id.
+		# 1)	translate the the grammatical category to the relevant Wikidata's item id.
 		# 2)	create and send the request
 
-# ----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	S = requests.Session()
 	URL = "https://www.wikidata.org/w/api.php"
 	
 	# connect and ask for a CSRF token
 	CSRF_TOKEN = coApi(URL, S)
+	
+	if lg != 'fr':
+		dial = lg
+		lg = 'oc'
 	
 	# get the item's id for the grammatical category 
 	catGramW = detailCat(catForm)
@@ -192,40 +215,48 @@ def createForm(idLex, form, catForm, lg):
 	R = S.post(URL, data=PARAMS)
 	DATA = R.json()
 	
+	idForm = DATA['form']['id']
+	
+	# I add a claim for the dialectif it is needed
+	if lg == 'oc':
+		setDial(idForm, dial)
+	
 def getCat(cat):
 
-# ----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-	# This function translate the the lexical category to the relevant 
-	# Wikidata's item id using a .csv file which matches the item's code with
-	# its lexical category.
+	# This function translate the the lexical category to the relevant Wikidata's item id using a .csv file which matches the item's code with its lexical category.
 
-# ----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	# open the .csv file
 	fname = # PATH
 	file = open(fname, 'rt', encoding='utf-8')
 	
+	findcat = False 
+	
 	try:
-		lecteur = csv.reader(file, delimiter="§") 
+		lecteur = csv.reader(file, delimiter=";") 
 		for row in lecteur:
 			if row[0] == cat:
 				catW = row[2]
+				findcat = True
+				break
 		
 	finally:
 		file.close()
 
-	return catW
+	if findcat:
+		return catW
 
 def detailCat(catDet):
 
-# ----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 	
-	# This function takes all the grammatical categories from a form and 
-	# return a list made of the relevant item's code, using a .csv file 
-	# which matches the item's code with its grammatical category.
+	# This function takes all the grammatical categories from a form and return a list made of the relevant item's code, using a .csv file which matches the item's 
+	# code with its grammatical category.
 	
-# ----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	list = []
 	
@@ -250,4 +281,131 @@ def detailCat(catDet):
 
 	return list
 	
+def setDial(idForm, dial):
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	# This function add a claim to a form to specifie the dialect
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 	
+	S = requests.Session()
+	URL = "https://www.wikidata.org/w/api.php"
+	
+	# connect and ask for a CSRF token
+	CSRF_TOKEN = coApi(URL, S)
+
+	# I get the numeric id of the item representing the dialect
+	if dial == 'lang':
+		idDial = '65529243'
+	elif dial == 'gasc':
+		idDial = '191085'
+	elif dial == 'prov':
+		idDial = '101081'
+	elif dial == 'auv':
+		idDial = '1152'
+	elif dial == 'lim':
+		idDial = '65530372'
+	elif dial == 'viva':
+		idDial = '65530697'
+
+	claim_value = json.dumps({"entity-type":"item", "numeric-id":idDial})
+	
+	# the request
+	PARAMS = {
+		"action": "wbcreateclaim",
+		"format": "json",
+		"entity": idForm,
+		"snaktype": "value",
+		'bot':'1',
+		"property": "P276",
+		"value": claim_value,
+		'token': CSRF_TOKEN
+	}
+	
+	R = S.post(URL, data=PARAMS)
+	DATA = R.json()
+
+def getLex(idLex):
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	# this function gets and returns the data of a lexeme for a given id
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	S = requests.Session()
+	URL = "https://www.wikidata.org/w/api.php"
+	
+	# connect and ask for a CSRF token
+	CSRF_TOKEN = coApi(URL, S)
+	
+	PARAMS = {
+		"action": "wbgetentities",
+		"format": "json",
+		"ids": idLex
+	}
+	
+	R = S.post(URL, data=PARAMS)
+	DATA = R.json()
+	
+	dico = DATA['entities'][idLex]['lemmas']
+	for cle, valeur in dico.items():
+		lg = valeur['language']
+		lemme = valeur['value']
+	
+	result = { 'idLex': DATA['entities'][idLex]['id'], 'lemme': lemme, 'lg': lg, 'formes': [] }
+
+	for form in DATA['entities'][idLex]['forms']:
+		forme = {
+					'idForm':form['id'], 
+					'representation':form['representations'][lg]['value'],
+					'catGram':form['grammaticalFeatures'],
+					'dialectes':[]
+				}
+		result['formes'] += [forme]
+		
+	# get the claims for each form of the lexeme
+	for form in result['formes']:
+		PARAMS_1 = {
+			"action": "wbgetclaims",
+			"format": "json",
+			"entity": form['idForm'],
+			"property": "P276"
+		}
+		
+		R = S.get(url=URL, params=PARAMS_1)
+		DATA = R.json()
+		
+		dico = DATA['claims']
+		for key, value in dico.items():
+			if key == 'P276':
+				claims = value
+				for cle in claims:
+					form['dialectes'] += [cle['mainsnak']['datavalue']['value']['id']]
+	
+	return result
+
+def getQidCat(idLex):
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	# This function returns the id of the lexical Category of a lexeme for a given id
+
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	S = requests.Session()
+	URL = "https://www.wikidata.org/w/api.php"
+	
+	PARAMS = {
+		"action": "wbgetentities",
+		"format": "json",
+		"ids": idLex
+	}
+
+	R = S.get(url=URL, params=PARAMS)
+	DATA = R.json()
+	
+	catLex = DATA['entities'][idLex]['lexicalCategory']
+	
+	return catLex
