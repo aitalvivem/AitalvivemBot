@@ -2,8 +2,6 @@
 import requests
 import json
 import csv
-import re
-from SPARQLWrapper import SPARQLWrapper, JSON
 
 def coApi(URL, S):
 
