@@ -13,11 +13,12 @@ try:
 	lecteur = csv.reader(file, delimiter=";")
 	
 	for row in lecteur:
-		form = row[0]
-		lemme = row[1]
-		catGram = row[2]
-		catLex = row[3]
-		lg = row[4]
+		lg = row[0]
+		form = row[3]
+		catGram = row[4]
+		lemme = row[5]
+		catGramL = row[6]
+		catLex = row[7]
 		
 		# I get the id of the lexeme (if the lexeme don't exists, i create it) and then i get the data of the lexeme
 		idLex = functionsmain.APIfunction.chercheLex(lemme, lg, catLex, catGram)
@@ -46,9 +47,9 @@ try:
 			# if the form exists with the same grammatical category I check the dialect, if the dialecte don't exists I add it to the form
 			if memeCat == True:
 				if lg != 'fr':
-					if lg == 'lang':
+					if lg == 'oc-lengadoc-grclass':
 						idDial = 'Q65529243'
-					elif lg == 'gasc':
+					elif lg == 'oc-gascon-grclass':
 						idDial = 'Q191085'
 					elif lg == 'prov':
 						idDial = 'Q101081'
