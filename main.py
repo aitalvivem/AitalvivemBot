@@ -13,12 +13,12 @@ try:
 	lecteur = csv.reader(file, delimiter=";")
 	
 	for row in lecteur:
-		lg = row[0]
-		form = row[3]
-		catGram = row[4]
-		lemme = row[5]
-		catGramL = row[6]
-		catLex = row[7]
+		lg = { 'libLg': row[0], 'codeLg': row[1], 'dial': row[7] }
+		form = row[2]
+		catGram = row[3]
+		lemme = row[4]
+		catGramL = row[5]
+		catLex = row[6]
 		
 		# I get the id of the lexeme (if the lexeme don't exists, i create it) and then i get the data of the lexeme
 		idLex = functionsmain.APIfunction.chercheLex(lemme, lg, catLex, catGram)
@@ -46,22 +46,11 @@ try:
 
 			# if the form exists with the same grammatical category I check the dialect, if the dialecte don't exists I add it to the form
 			if memeCat == True:
-				if lg != 'fr':
-					if lg == 'oc-lengadoc-grclass':
-						idDial = 'Q65529243'
-					elif lg == 'oc-gascon-grclass':
-						idDial = 'Q191085'
-					elif lg == 'prov':
-						idDial = 'Q101081'
-					elif lg == 'auv':
-						idDial = 'Q1152'
-					elif lg == 'lim':
-						idDial = 'Q65530372'
-					elif lg == 'viva':
-						idDial = 'Q65530697'
+				if lg['dial'] != '':
+					idDial = lg['dial']
 					
 					if idDial not in formeMatch['dialectes']:
-						functionsmain.APIfunction.setDial(idForm, lg)
+						functionsmain.APIfunction.setDial(formeMatch['idForm'], lg)
 						
 			else:
 				# else I create a new form
@@ -73,6 +62,6 @@ try:
 				functionsmain.APIfunction.createForm(idLex, form, catGram, lg)
 
 finally:
-	# on referme le fichier
+	# close the file
 	file.close()
 
