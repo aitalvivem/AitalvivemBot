@@ -65,7 +65,6 @@ def chercheLex(info, lg, catLex, catGram):
 	S = requests.Session()
 	URL = "https://www.wikidata.org/w/api.php"
 	
-	# the request
 	PARAMS = {
 		'action':'wbsearchentities',
 		'language' : 'oc',
@@ -111,7 +110,6 @@ def createLex(lexeme, lg, catLex, catGram):
 	S = requests.Session()
 	URL = "https://www.wikidata.org/w/api.php"
 	
-	# connect and ask for a CSRF token
 	CSRF_TOKEN = coApi(URL, S)
 	
 	# get the item's id for the lexical category, the grammatical category and the language
@@ -122,27 +120,27 @@ def createLex(lexeme, lg, catLex, catGram):
 		
 	# I create the json with the lexeme's data
 	data_lex = json.dumps({
-							'type':'lexeme',
-							'lemmas':{
-								langue:{
-									'value':lexeme, 
-									'language':langue
-								}
-							},
-							'language': codeLangue,
-							'lexicalCategory':catLexW,
-							'forms':[{
-								'add':'',
-								'representations':{
-									langue:{
-										'language': langue,
-										'value':lexeme
-									}
-								},
-								'grammaticalFeatures':catGramW,
-								'claims':[]
-							}]
-						})
+					'type':'lexeme',
+					'lemmas':{
+						langue:{
+							'value':lexeme, 
+							'language':langue
+						}
+					},
+					'language': codeLangue,
+					'lexicalCategory':catLexW,
+					'forms':[{
+						'add':'',
+						'representations':{
+							langue:{
+								'language': langue,
+								'value':lexeme
+							}
+						},
+						'grammaticalFeatures':catGramW,
+						'claims':[]
+					}]
+				})
 
 	# send a post to edit a lexeme
 	PARAMS = {
@@ -181,7 +179,6 @@ def createForm(idLex, form, catForm, lg):
 	S = requests.Session()
 	URL = "https://www.wikidata.org/w/api.php"
 	
-	# connect and ask for a CSRF token
 	CSRF_TOKEN = coApi(URL, S)
 	
 	# get the item's id for the grammatical category 
@@ -281,7 +278,6 @@ def setDial(idForm, lg):
 	S = requests.Session()
 	URL = "https://www.wikidata.org/w/api.php"
 	
-	# connect and ask for a CSRF token
 	CSRF_TOKEN = coApi(URL, S)
 
 	# I get the numeric id of the item representing the dialect
@@ -289,7 +285,6 @@ def setDial(idForm, lg):
 
 	claim_value = json.dumps({"entity-type":"item", "numeric-id":idDial})
 	
-	# the request
 	PARAMS = {
 		"action": "wbcreateclaim",
 		"format": "json",
@@ -315,7 +310,6 @@ def getLex(idLex):
 	S = requests.Session()
 	URL = "https://www.wikidata.org/w/api.php"
 	
-	# connect and ask for a CSRF token
 	CSRF_TOKEN = coApi(URL, S)
 	
 	PARAMS = {
