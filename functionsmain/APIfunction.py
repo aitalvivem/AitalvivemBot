@@ -83,7 +83,7 @@ def chercheLex(info, lg, catLex, catGram):
 
 	for item in DATA['search']:
 		# If thelexeme exists I return the id
-		if item['match']['text'] == info and item['match']['language'] in lg:
+		if item['match']['text'] == info and item['match']['language'] in lg['libLg']:
 			lexQid = getQidCat(item['id'])
 			if catLexW == lexQid:
 				lexExists = True
@@ -117,38 +117,32 @@ def createLex(lexeme, lg, catLex, catGram):
 	# get the item's id for the lexical category, the grammatical category and the language
 	catLexW = getCat(catLex)
 	catGramW = detailCat(catGram)
-	
-	if lg != 'fr':
-		dial = lg
-		lg = 'oc'
-		codeLg ='Q14185'
-	else:
-		codeLg = 'Q150'
+	langue = lg['libLg']
+	codeLangue = lg['codeLg']
 		
 	# I create the json with the lexeme's data
-	data_lex = json.dumps({'type':'lexeme',
-					'lemmas':{
-						lg:{
-							'value':lexeme, 
-							'language':lg
-						}
-					},
-					'language': codeLg,
-					'lexicalCategory':catLexW,
-					'forms':[
-						{
-							'add':'',
-							'representations':{
-								lg:{
-									'language': lg,
-									'value':lexeme
+	data_lex = json.dumps({
+							'type':'lexeme',
+							'lemmas':{
+								langue:{
+									'value':lexeme, 
+									'language':langue
 								}
 							},
-							'grammaticalFeatures':catGramW,
-							'claims':[]
-						}
-					]
-				})
+							'language': codeLangue,
+							'lexicalCategory':catLexW,
+							'forms':[{
+								'add':'',
+								'representations':{
+									langue:{
+										'language': langue,
+										'value':lexeme
+									}
+								},
+								'grammaticalFeatures':catGramW,
+								'claims':[]
+							}]
+						})
 
 	# send a post to edit a lexeme
 	PARAMS = {
@@ -167,10 +161,10 @@ def createLex(lexeme, lg, catLex, catGram):
 	idLex = DATA['entity']['id']
 	
 	# I add a claim for the dialectif it is needed
-	if lg == 'oc':
+	if lg['dial'] != '':
 		infoLex = getLex(idLex)
 		for form in infoLex['formes']:
-			setDial(form['idForm'], dial)
+			setDial(form['idForm'], lg)
 	
 	return idLex
 
@@ -190,15 +184,12 @@ def createForm(idLex, form, catForm, lg):
 	# connect and ask for a CSRF token
 	CSRF_TOKEN = coApi(URL, S)
 	
-	if lg != 'fr':
-		dial = lg
-		lg = 'oc'
-	
 	# get the item's id for the grammatical category 
 	catGramW = detailCat(catForm)
+	langue = lg['libLg']
 
 	# I create the json with the lexeme's data
-	data_form = json.dumps({'representations':{lg:{'value':form, 'language': lg}}, 'grammaticalFeatures':catGramW}) 
+	data_form = json.dumps({'representations':{langue:{'value':form, 'language': langue}}, 'grammaticalFeatures':catGramW}) 
 	
 	# send a post to edit a form
 	PARAMS= {
@@ -216,8 +207,8 @@ def createForm(idLex, form, catForm, lg):
 	idForm = DATA['form']['id']
 	
 	# I add a claim for the dialectif it is needed
-	if lg == 'oc':
-		setDial(idForm, dial)
+	if lg['dial'] != '':
+		setDial(idForm, lg)
 	
 def getCat(cat):
 
@@ -279,7 +270,7 @@ def detailCat(catDet):
 
 	return list
 	
-def setDial(idForm, dial):
+def setDial(idForm, lg):
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -294,18 +285,7 @@ def setDial(idForm, dial):
 	CSRF_TOKEN = coApi(URL, S)
 
 	# I get the numeric id of the item representing the dialect
-	if dial == 'lang':
-		idDial = '65529243'
-	elif dial == 'gasc':
-		idDial = '191085'
-	elif dial == 'prov':
-		idDial = '101081'
-	elif dial == 'auv':
-		idDial = '1152'
-	elif dial == 'lim':
-		idDial = '65530372'
-	elif dial == 'viva':
-		idDial = '65530697'
+	idDial = lg['dial'].replace('Q','')
 
 	claim_value = json.dumps({"entity-type":"item", "numeric-id":idDial})
 	
