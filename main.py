@@ -7,7 +7,6 @@ import functionsmain.APIfunction
 fname = # PATH
 file = open(fname, 'rt', encoding='utf-8')
 
-
 # I take the files datas using csv.reader and store it in 'lecteur'
 try:
 	lecteur = csv.reader(file, delimiter=";")
