@@ -3,6 +3,11 @@ import requests
 import json
 import csv
 
+def setCo(user_name, user_pass):
+	global USER_NAME, USER_PASS
+	USER_NAME = user_name
+	USER_PASS = user_pass
+
 def coApi(URL, S):
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -11,11 +16,9 @@ def coApi(URL, S):
 	
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-	# the connexion informations
-	USER_NAME = # USER_NAME
-	USER_PASS = # USER_PASS
+	global USER_NAME, USER_PASS
 	
-	# ask for a token
+	# I ask for a token
 	PARAMS_1 = {
 		'action': 'query',
 		'meta': 'tokens',
@@ -52,14 +55,14 @@ def coApi(URL, S):
 	
 	return CSRF_TOKEN
 
-def chercheLex(info, lg, catLex, catGram): 
-	
+def chercheLex(info, lg, catLex, declaLex): 
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	# This function search for a lexeme in the wikidata database
 		# If the function find the lexeme it return the id
 		# else the function call the createLex function
-		
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	S = requests.Session()
@@ -67,9 +70,8 @@ def chercheLex(info, lg, catLex, catGram):
 	
 	PARAMS = {
 		'action':'wbsearchentities',
-		'language' : 'oc',
+		'language' : lg['libLg'],
 		'type' : 'lexeme',
-		'bot':'1',
 		'search': info,
 		'format':'json'
 	}
@@ -78,32 +80,30 @@ def chercheLex(info, lg, catLex, catGram):
 	DATA = R.json()
 	
 	lexExists = False
-	catLexW = getCat(catLex)
 
 	for item in DATA['search']:
-		# If thelexeme exists I return the id
-		if item['match']['text'] == info and item['match']['language'] in lg['libLg']:
+		# If the lexeme exists I return the id
+		if item['match']['text'] == info and item['match']['language'] == lg['libLg']: 
 			lexQid = getQidCat(item['id'])
-			if catLexW == lexQid:
+			if catLex == lexQid:
 				lexExists = True
 				idLex = item['id']
 				break
-	
+				
 	# else I create the lexeme and return the id
 	if lexExists == False:
-		return createLex(info, lg, catLex, catGram)
+		return createLex(info, lg, catLex, declaLex) 
 	else:
 		return idLex
 
-def createLex(lexeme, lg, catLex, catGram): 
+def createLex(lexeme, lg, catLex, declaLex): 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	# this function create a lexeme and return the id :
-		# 1)	translate the lexical category, the grammatical category and the language to the relevant Wikidata's item id.
-		# 2)	create and send the request
-		# 3)	call setDial() to create a claim for the dialect
-		# 4)	return the id
+		# 1)	create and send the request
+		# 2)	call setClaim() to create a claim
+		# 3)	return the id
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -112,42 +112,29 @@ def createLex(lexeme, lg, catLex, catGram):
 	
 	CSRF_TOKEN = coApi(URL, S)
 	
-	# get the item's id for the lexical category, the grammatical category and the language
-	catLexW = getCat(catLex)
-	catGramW = detailCat(catGram)
 	langue = lg['libLg']
 	codeLangue = lg['codeLg']
 		
 	# I create the json with the lexeme's data
 	data_lex = json.dumps({
-					'type':'lexeme',
-					'lemmas':{
-						langue:{
-							'value':lexeme, 
-							'language':langue
-						}
-					},
-					'language': codeLangue,
-					'lexicalCategory':catLexW,
-					'forms':[{
-						'add':'',
-						'representations':{
-							langue:{
-								'language': langue,
-								'value':lexeme
-							}
-						},
-						'grammaticalFeatures':catGramW,
-						'claims':[]
-					}]
-				})
+							'type':'lexeme',
+							'lemmas':{
+								langue:{
+									'value':lexeme, 
+									'language':langue
+								}
+							},
+							'language': codeLangue,
+							'lexicalCategory':catLex,
+							'forms':[]
+						})
 
-	# send a post to edit a lexeme
+	# I send a post to edit a lexeme
 	PARAMS = {
 		'action': 'wbeditentity',
 		'format': 'json',
-		'new': 'lexeme',
 		'bot':'1',
+		'new': 'lexeme',
 		'token': CSRF_TOKEN,
 		'data': data_lex 
 	}
@@ -159,20 +146,18 @@ def createLex(lexeme, lg, catLex, catGram):
 	idLex = DATA['entity']['id']
 	
 	# I add a claim for the dialectif it is needed
-	if lg['dial'] != '':
-		infoLex = getLex(idLex)
-		for form in infoLex['formes']:
-			setDial(form['idForm'], lg)
+	for cle, valeur in declaLex.items():
+		setClaim(idLex, cle, valeur)
 	
 	return idLex
 
-def createForm(idLex, form, catForm, lg):
+def createForm(idLex, form, infosGram, lg, declaForm):
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-	# this function create a form for a lexeme :
-		# 1)	translate the the grammatical category to the relevant Wikidata's item id.
-		# 2)	create and send the request
+	# cette fonction crée une forme pour un lexeme (id) donné :
+		# 1)	on crée et on envoie la requete
+		# 2)	on appele la fonction setClaim pour ajouter les déclarations
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -181,12 +166,10 @@ def createForm(idLex, form, catForm, lg):
 	
 	CSRF_TOKEN = coApi(URL, S)
 	
-	# get the item's id for the grammatical category 
-	catGramW = detailCat(catForm)
 	langue = lg['libLg']
 
 	# I create the json with the lexeme's data
-	data_form = json.dumps({'representations':{langue:{'value':form, 'language': langue}}, 'grammaticalFeatures':catGramW}) 
+	data_form = json.dumps({'representations':{langue:{'value':form, 'language': langue}}, 'grammaticalFeatures':infosGram}) 
 	
 	# send a post to edit a form
 	PARAMS= {
@@ -204,74 +187,14 @@ def createForm(idLex, form, catForm, lg):
 	idForm = DATA['form']['id']
 	
 	# I add a claim for the dialectif it is needed
-	if lg['dial'] != '':
-		setDial(idForm, lg)
-	
-def getCat(cat):
+	for cle, valeur in declaForm.items():
+		setClaim(idForm, cle, valeur)
+
+def setClaim(idForm, idProp, idItem):
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-	# This function translate the the lexical category to the relevant Wikidata's item id using a .csv file which matches the item's code with its lexical category.
-
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-	# open the .csv file
-	fname = # PATH
-	file = open(fname, 'rt', encoding='utf-8')
-	
-	findcat = False 
-	
-	try:
-		lecteur = csv.reader(file, delimiter=";") 
-		for row in lecteur:
-			if row[0] == cat:
-				catW = row[2]
-				findcat = True
-				break
-		
-	finally:
-		file.close()
-
-	if findcat:
-		return catW
-
-def detailCat(catDet):
-
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-	
-	# This function takes all the grammatical categories from a form and return a list made of the relevant item's code, using a .csv file which matches the item's 
-	# code with its grammatical category.
-	
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-	list = []
-	
-	fname = # PATH
-	file = open(fname, 'rt', encoding='utf-8')
-	
-	try:
-		lecteur = csv.reader(file, delimiter=";") 
-		for row in lecteur:
-			if row[0] == catDet:
-				if row[2] != '':
-					list += [row[2]]
-				if row[3] != '':
-					list += [row[3]]
-				if row[4] != '':
-					list += [row[4]]
-				if row[5] != '':
-					list += [row[5]]
-
-	finally:
-		file.close()
-
-	return list
-	
-def setDial(idForm, lg):
-
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-	# This function add a claim to a form to specifie the dialect
+	# This function add a claim to a form
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 	
@@ -279,11 +202,10 @@ def setDial(idForm, lg):
 	URL = "https://www.wikidata.org/w/api.php"
 	
 	CSRF_TOKEN = coApi(URL, S)
+	
+	idItem = idItem.replace("Q", "")
 
-	# I get the numeric id of the item representing the dialect
-	idDial = lg['dial'].replace('Q','')
-
-	claim_value = json.dumps({"entity-type":"item", "numeric-id":idDial})
+	claim_value = json.dumps({"entity-type":"item", "numeric-id":idItem})
 	
 	PARAMS = {
 		"action": "wbcreateclaim",
@@ -291,7 +213,7 @@ def setDial(idForm, lg):
 		"entity": idForm,
 		"snaktype": "value",
 		'bot':'1',
-		"property": "P276",
+		"property": idProp,
 		"value": claim_value,
 		'token': CSRF_TOKEN
 	}
@@ -322,6 +244,7 @@ def getLex(idLex):
 	DATA = R.json()
 	
 	dico = DATA['entities'][idLex]['lemmas']
+	
 	for cle, valeur in dico.items():
 		lg = valeur['language']
 		lemme = valeur['value']
@@ -337,7 +260,7 @@ def getLex(idLex):
 				}
 		result['formes'] += [forme]
 		
-	# get the claims for each form of the lexeme
+	# I get the claims of a dialect for each forms
 	for form in result['formes']:
 		PARAMS_1 = {
 			"action": "wbgetclaims",
@@ -350,6 +273,7 @@ def getLex(idLex):
 		DATA = R.json()
 		
 		dico = DATA['claims']
+		
 		for key, value in dico.items():
 			if key == 'P276':
 				claims = value
@@ -369,6 +293,7 @@ def getQidCat(idLex):
 	S = requests.Session()
 	URL = "https://www.wikidata.org/w/api.php"
 	
+	# on crée la requete
 	PARAMS = {
 		"action": "wbgetentities",
 		"format": "json",
@@ -381,3 +306,4 @@ def getQidCat(idLex):
 	catLex = DATA['entities'][idLex]['lexicalCategory']
 	
 	return catLex
+
