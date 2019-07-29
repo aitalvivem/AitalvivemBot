@@ -10,11 +10,9 @@ def setCo(user_name, user_pass):
 
 def coApi(URL, S):
 
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-	# This function connect the Bot to a wikidata account and ask for a CSRF token
-	
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	"""
+	This function connect the Bot to a wikidata account and ask for a CSRF token
+	"""
 
 	global USER_NAME, USER_PASS
 	
@@ -57,13 +55,11 @@ def coApi(URL, S):
 
 def chercheLex(info, lg, catLex, declaLex): 
 
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-	# This function search for a lexeme in the wikidata database
-		# If the function find the lexeme it return the id
-		# else the function call the createLex function
-
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	"""
+	This function search for a lexeme in the wikidata database
+		If the function find the lexeme it return the id
+		else the function call the createLex function
+	"""
 
 	S = requests.Session()
 	URL = "https://www.wikidata.org/w/api.php"
@@ -81,31 +77,50 @@ def chercheLex(info, lg, catLex, declaLex):
 	
 	lexExists = False
 
-	for item in DATA['search']:
-		# If the lexeme exists I return the id
-		if item['match']['text'] == info and item['match']['language'] == lg['libLg']: 
-			lexQid = getQidCat(item['id'])
-			if catLex == lexQid:
-				lexExists = True
-				idLex = item['id']
-				break
+	try:
+		for item in DATA['search']:
+			# if the lexeme exists
+			if item['match']['text'] == info and item['match']['language'] == lg['libLg']: # TEST
+				# I check the grammaticals features 
+				lexQid = getQidCat(item['id'])
+				if lexQid==1:
+					return 0, 3
 				
-	# else I create the lexeme and return the id
-	if lexExists == False:
-		return createLex(info, lg, catLex, declaLex) 
-	else:
-		return idLex
+				if catLex == lexQid:
+					idLex = item['id']
+					
+					# I check the claims
+					infoLex = getLex(idLex)
+					if infoLex!=1:
+						compt = 0
+						for cle, values in declaLex.items():
+							for value in values:
+								if cle not in infoLex['declaration'].keys() or value not in infoLex['declaration'][cle]:
+									compt += 1
+									break
+						
+						if compt == 0:
+							lexExists = True
+							print('--j\'ai trouvé le lexème, id =', idLex) # trace
+							break
+					
+		# else I create the lexeme
+		if lexExists == False:
+			# print('chercheLex : le lexeme n\'existe pas, je le crée') #trace
+			return createLex(info, lg, catLex, declaLex) 
+		else:
+			return idLex, 0
+	except:
+		return 0, 1
 
 def createLex(lexeme, lg, catLex, declaLex): 
 
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-	# this function create a lexeme and return the id :
-		# 1)	create and send the request
-		# 2)	call setClaim() to create a claim
-		# 3)	return the id
-
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	"""
+	this function create a lexeme and return the id :
+		1)	create and send the request
+		2)	call setClaim() to create a claim
+		3)	return the id
+	"""
 
 	S = requests.Session()
 	URL = "https://www.wikidata.org/w/api.php"
@@ -142,24 +157,28 @@ def createLex(lexeme, lg, catLex, declaLex):
 	R = S.post(URL, data=PARAMS)
 	DATA = R.json()
 	
-	# I get the id of the lexeme
-	idLex = DATA['entity']['id']
-	
-	# I add a claim for the dialectif it is needed
-	for cle, valeur in declaLex.items():
-		setClaim(idLex, cle, valeur)
-	
-	return idLex
+	try:
+		# I get the id of the lexeme
+		idLex = DATA['entity']['id']
+		
+		print('--lexeme créé : idLex = ', idLex) # trace
+		
+		for cle, valeur in declaLex.items():
+			res = setClaim(idLex, cle, valeur)
+			if res==1:
+				return idLex, 4
+		
+		return idLex, 0
+	except:
+		return 0, 2
 
 def createForm(idLex, form, infosGram, lg, declaForm):
 
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-	# cette fonction crée une forme pour un lexeme (id) donné :
-		# 1)	on crée et on envoie la requete
-		# 2)	on appele la fonction setClaim pour ajouter les déclarations
-
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	"""
+	cette fonction crée une forme pour un lexeme (id) donné :
+		1)	on crée et on envoie la requete
+		2)	on appele la fonction setClaim pour ajouter les déclarations
+	"""
 
 	S = requests.Session()
 	URL = "https://www.wikidata.org/w/api.php"
@@ -184,19 +203,26 @@ def createForm(idLex, form, infosGram, lg, declaForm):
 	R = S.post(URL, data=PARAMS)
 	DATA = R.json()
 	
-	idForm = DATA['form']['id']
-	
-	# I add a claim for the dialectif it is needed
-	for cle, valeur in declaForm.items():
-		setClaim(idForm, cle, valeur)
+	try:
+		idForm = DATA['form']['id']
+		
+		print('---forme crée : idForm = ', idForm) # trace
+		
+		# I add the claims
+		for cle, valeur in declaForm.items():
+			res = setClaim(idForm, cle, valeur)
+			if res==1:
+				return 2
+		
+		return 0
+	except:
+		return 1
 
 def setClaim(idForm, idProp, idItem):
 
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-	# This function add a claim to a form
-
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	"""
+	This function add a claim to a form
+	"""
 	
 	S = requests.Session()
 	URL = "https://www.wikidata.org/w/api.php"
@@ -220,14 +246,19 @@ def setClaim(idForm, idProp, idItem):
 	
 	R = S.post(URL, data=PARAMS)
 	DATA = R.json()
+	
+	try:
+		verif = DATA['claim']
+		print('---déclaration ajoutée') # trace
+		return 0
+	except:
+		return 1
 
 def getLex(idLex):
 
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-	# this function gets and returns the data of a lexeme for a given id
-
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	"""
+	this function gets and returns the data of a lexeme for a given id
+	"""
 
 	S = requests.Session()
 	URL = "https://www.wikidata.org/w/api.php"
@@ -243,57 +274,73 @@ def getLex(idLex):
 	R = S.post(URL, data=PARAMS)
 	DATA = R.json()
 	
-	dico = DATA['entities'][idLex]['lemmas']
-	
-	for cle, valeur in dico.items():
-		lg = valeur['language']
-		lemme = valeur['value']
-	
-	result = { 'idLex': DATA['entities'][idLex]['id'], 'lemme': lemme, 'lg': lg, 'formes': [] }
-
-	for form in DATA['entities'][idLex]['forms']:
-		forme = {
-					'idForm':form['id'], 
-					'representation':form['representations'][lg]['value'],
-					'catGram':form['grammaticalFeatures'],
-					'dialectes':[]
-				}
-		result['formes'] += [forme]
+	try:
+		dico = DATA['entities'][idLex]['lemmas']
 		
-	# I get the claims of a dialect for each forms
-	for form in result['formes']:
+		for cle, valeur in dico.items():
+			lg = valeur['language']
+			lemme = valeur['value']
+		
+		result = { 'idLex': DATA['entities'][idLex]['id'], 'lemme': lemme, 'lg': lg, 'formes': [], 'declaration': {} }
+		
+		# I get the forms
+		for form in DATA['entities'][idLex]['forms']:
+			forme = {
+						'idForm':form['id'], 
+						'representation':form['representations'][lg]['value'],
+						'catGram':form['grammaticalFeatures'],
+						'declaration':{}
+					}
+			result['formes'] += [forme]
+		
+		# I get the claims
 		PARAMS_1 = {
 			"action": "wbgetclaims",
 			"format": "json",
-			"entity": form['idForm'],
-			"property": "P276"
+			"entity": result['idLex']
 		}
 		
 		R = S.get(url=URL, params=PARAMS_1)
 		DATA = R.json()
 		
-		dico = DATA['claims']
+		for prop, value in DATA['claims'].items():
+			if prop not in result['declaration']:
+				result['declaration'][prop] = []
+			for concept in value:
+				result['declaration'][prop].append(concept['mainsnak']['datavalue']['value']['id'])
 		
-		for key, value in dico.items():
-			if key == 'P276':
-				claims = value
-				for cle in claims:
-					form['dialectes'] += [cle['mainsnak']['datavalue']['value']['id']]
-	
-	return result
+		# I get the claims for each forms of the lexeme
+		for form in result['formes']:
+			PARAMS_2 = {
+				"action": "wbgetclaims",
+				"format": "json",
+				"entity": form['idForm']
+			}
+			
+			R = S.get(url=URL, params=PARAMS_2)
+			DATA = R.json()
+			
+			dico = DATA['claims']
+			
+			for prop, value in dico.items():
+				if prop not in form['declaration']:
+					form['declaration'][prop] = []
+				for concept in value:
+					form['declaration'][prop].append(concept['mainsnak']['datavalue']['value']['id'])
+		
+		return result
+	except:
+		return 1
 
 def getQidCat(idLex):
 
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-	# This function returns the id of the lexical Category of a lexeme for a given id
-
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	"""
+	This function returns the id of the lexical Category of a lexeme for a given id
+	"""
 
 	S = requests.Session()
 	URL = "https://www.wikidata.org/w/api.php"
 	
-	# on crée la requete
 	PARAMS = {
 		"action": "wbgetentities",
 		"format": "json",
