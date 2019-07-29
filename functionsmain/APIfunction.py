@@ -101,7 +101,7 @@ def chercheLex(info, lg, catLex, declaLex):
 						
 						if compt == 0:
 							lexExists = True
-							print('--j\'ai trouvé le lexème, id =', idLex) # trace
+							print('--lexème retourné, id =', idLex) # trace
 							break
 					
 		# else I create the lexeme
