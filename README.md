@@ -1,5 +1,5 @@
 # AitalvivemBot
-Here is few things you need to setup/install before your start the bot.
+Here is few things you need to install before your start the bot.
 
 First you need ton install the pywikibot framework (https://www.mediawiki.org/wiki/Manual:Pywikibot/Installation/fr) and the lxml library for python.
 
