@@ -286,7 +286,6 @@ for lexeme in tei.xpath('.//form[@type="lemma"]'):
 
 			# if the form exists I check the grammaticals features
 			for formes in infoLex['formes']:
-				# on vérifie si la forme existe deja 
 				if form == formes['representation']:
 					formExists = True
 					formeMatch += [formes]
@@ -351,7 +350,7 @@ for lexeme in tei.xpath('.//form[@type="lemma"]'):
 					err += 1
 					continue
 				
-			print('--main : forme ', form, 'traitée\n') # trace
+			print('--forme ', form, 'traitée\n') # trace
 
 	print('\nlexeme numéro', compteur, ':', lemme, 'traité') # trace
 
