@@ -163,10 +163,11 @@ def createLex(lexeme, lg, catLex, declaLex):
 		
 		print('--lexeme créé : idLex = ', idLex) # trace
 		
-		for cle, valeur in declaLex.items():
-			res = setClaim(idLex, cle, valeur)
-			if res==1:
-				return idLex, 4
+		for cle, valeurs in declaLex.items():
+			for valeur in valeurs:
+				res = setClaim(idLex, cle, valeur)
+				if res==1:
+					return idLex, 4
 		
 		return idLex, 0
 	except:
@@ -209,10 +210,11 @@ def createForm(idLex, form, infosGram, lg, declaForm):
 		print('---forme crée : idForm = ', idForm) # trace
 		
 		# I add the claims
-		for cle, valeur in declaForm.items():
-			res = setClaim(idForm, cle, valeur)
-			if res==1:
-				return 2
+		for cle, valeurs in declaForm.items():
+			for valeur in valeurs:
+				res = setClaim(idForm, cle, valeur)
+				if res==1:
+					return 2
 		
 		return 0
 	except:
