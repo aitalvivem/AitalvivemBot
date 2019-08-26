@@ -1,7 +1,8 @@
 #!/usr/bin/python3
-import src.LexData as LexData
+import LexData
+from LexData.languages import en
 
-repo = LexData.wikidataSession("MichaelSchoenitzer", "foobar")
+repo = LexData.WikidataSession("MichaelSchoenitzer", "foobar")
 
 # Open a Lexeme
 L2 = LexData.Lexeme(repo, "L2")
@@ -18,5 +19,4 @@ S1 = L2.senses[0]
 print(S1.claims.keys())
 
 # Find or create a Lexeme by lemma, language and grammatical form
-en = LexData.Language("en", "Q1860")
 L2 = LexData.get_or_create_lexeme(repo, "first", en, "Q1084")

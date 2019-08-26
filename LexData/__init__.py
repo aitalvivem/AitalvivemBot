@@ -2,14 +2,15 @@
 import json
 import logging
 from dataclasses import dataclass
+from typing import Any, Dict, List
 
 import requests
 
 name = "LexData"
-version = "0.1"
+version = "0.1.1"
 
 
-class wikidataSession:
+class WikidataSession:
     """
     Wikidata network and authentication session. Needed for everything this
     framework does.
@@ -17,7 +18,7 @@ class wikidataSession:
 
     URL = "https://www.wikidata.org/w/api.php"
 
-    def __init__(self, username, password, user_agent="LexData"):
+    def __init__(self, username: str, password: str, user_agent=f"{name} {version}"):
         """
         Create a wikidata session by logging in and getting the token
         """
@@ -52,7 +53,7 @@ class wikidataSession:
         DATA = self.get(PARAMS_3)
         self.CSRF_TOKEN = DATA["query"]["tokens"]["csrftoken"]
 
-    def post(self, data):
+    def post(self, data: Dict[str, str]) -> Any:
         """
         Send data to wikidata by POST request. The CSRF token is automatically
         filled in if __AUTO__ is given instead.
@@ -66,11 +67,11 @@ class wikidataSession:
         R = self.S.post(self.URL, data=data, headers=self.headers)
         if R.status_code != 200:
             raise Exception(
-                "POST was unsuccessfull ({}): {}".format(R.status_code, R.text())
+                "POST was unsuccessfull ({}): {}".format(R.status_code, R.text)
             )
         return R.json()
 
-    def get(self, data):
+    def get(self, data: Dict[str, str]) -> Any:
         """
         Send a GET request to wikidata
 
@@ -81,7 +82,7 @@ class wikidataSession:
         R = self.S.get(self.URL, params=data, headers=self.headers)
         if R.status_code != 200:
             raise Exception(
-                "GET was unsuccessfull ({}): {}".format(R.status_code, R.text())
+                "GET was unsuccessfull ({}): {}".format(R.status_code, R.text)
             )
         return R.json()
 
@@ -101,7 +102,7 @@ class Claim(dict):
     Wrapper around a dict to represent a Claim
     """
 
-    def __init__(self, claim):
+    def __init__(self, claim: Dict):
         super().__init__()
         self.update(claim)
 
@@ -111,20 +112,20 @@ class Form(dict):
     Wrapper around a dict to represent a From
     """
 
-    def __init__(self, form):
+    def __init__(self, form: Dict):
         super().__init__()
         self.update(form)
 
-    def form(self):
+    def form(self) -> str:
         return list(self["representations"].values())[0]["value"]
 
-    def claims(self):
+    def claims(self) -> Dict[str, List[Claim]]:
         return {k: [Claim(c) for c in v] for k, v in self["claims"].items()}
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<Form '{}'>".format(self.form())
 
-    def __str__(self):
+    def __str__(self) -> str:
         return super().__repr__()
 
 
@@ -133,11 +134,11 @@ class Sense(dict):
     Wrapper around a dict to represent a Sense
     """
 
-    def __init__(self, form):
+    def __init__(self, form: Dict):
         super().__init__()
         self.update(form)
 
-    def glosse(self, lang="en"):
+    def glosse(self, lang="en") -> str:
         if lang not in self["glosses"]:
             if "en" in self["glosses"]:
                 lang = "en"
@@ -145,13 +146,13 @@ class Sense(dict):
                 lang = list(self["glosses"].keys())[0]
         return self["glosses"][lang]["value"]
 
-    def claims(self):
+    def claims(self) -> Dict[str, List[Claim]]:
         return {k: [Claim(c) for c in v] for k, v in self["claims"].items()}
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<Sense '{}'>".format(self.glosse())
 
-    def __str__(self):
+    def __str__(self) -> str:
         return super().__repr__()
 
 
@@ -160,12 +161,12 @@ class Lexeme(dict):
     Wrapper around a dict to represent a Lexeme
     """
 
-    def __init__(self, repo, idLex):
+    def __init__(self, repo: WikidataSession, idLex: str):
         super().__init__()
         self.repo = repo
         self.getLex(idLex)
 
-    def getLex(self, idLex):
+    def getLex(self, idLex: str):
         """
         this function gets and returns the data of a lexeme for a given id
 
@@ -181,26 +182,26 @@ class Lexeme(dict):
         self.update(DATA["entities"][idLex])
 
     @property
-    def lemma(self):
+    def lemma(self) -> str:
         return list(self["lemmas"].values())[0]["value"]
 
     @property
-    def language(self):
+    def language(self) -> str:
         return list(self["lemmas"].values())[0]["language"]
 
     @property
-    def claims(self):
-        return {k: [Claim(c) for c in v] for k, v in super().get("claims").items()}
+    def claims(self) -> Dict[str, List[Claim]]:
+        return {k: [Claim(c) for c in v] for k, v in super().get("claims", {}).items()}
 
     @property
-    def forms(self):
-        return [Form(f) for f in super().get("forms")]
+    def forms(self) -> List[Form]:
+        return [Form(f) for f in super().get("forms", [])]
 
     @property
-    def senses(self):
-        return [Sense(s) for s in super().get("senses")]
+    def senses(self) -> List[Sense]:
+        return [Sense(s) for s in super().get("senses", [])]
 
-    def createSense(self, glosses, claims=None):
+    def createSense(self, glosses: Dict[str, str], claims=None) -> str:
         """
         Create a sense for the lexeme
 
@@ -208,7 +209,7 @@ class Lexeme(dict):
         @param claims: claims to add to the new form
         """
         # Create the json with the sense's data
-        data_sense = {"glosses": {}}
+        data_sense: Dict[str, Dict[str, Dict[str, str]]] = {"glosses": {}}
         for lang, gloss in glosses.items():
             data_sense["glosses"][lang] = {"value": gloss, "language": lang}
 
@@ -231,7 +232,9 @@ class Lexeme(dict):
 
         return idSense
 
-    def createForm(self, form, infosGram, language=None, claims=None):
+    def createForm(
+        self, form: str, infosGram: str, language: Language = None, claims=None
+    ) -> str:
         """
         Create a form for the lexeme
 
@@ -284,7 +287,7 @@ class Lexeme(dict):
         """
         self.__setClaims__(self["id"], claims)
 
-    def __setClaims__(self, parent, claims):
+    def __setClaims__(self, parent: str, claims):
         """
         Add claims to a Lexeme, Form or Sense
 
@@ -298,7 +301,7 @@ class Lexeme(dict):
                 self.__setClaim__(parent, cle, value)
         self.getLex(self["id"])
 
-    def __setClaim__(self, parent, idProp, idItem):
+    def __setClaim__(self, parent: str, idProp: str, idItem: str):
         """
         This function adds a claim to an existing lexeme/form/sense
 
@@ -329,11 +332,11 @@ class Lexeme(dict):
             raise Exception("Unknown error adding claim", e)
 
 
-def get_or_create_lexeme(repo, lemma, lang, catLex):
+def get_or_create_lexeme(repo, lemma: str, lang: Language, catLex: str) -> Lexeme:
     """
     Search for a lexeme in wikidata if not found, create it
 
-    @param repo: Wikidatasession
+    @param repo: WikidataSession
     @param lemma: the lemma of the lexeme
     @param lang: language of the lexeme
     @param catLex: lexical Category of the lexeme
@@ -367,22 +370,22 @@ def get_or_create_lexeme(repo, lemma, lang, catLex):
     return create_lexeme(repo, lemma, lang, catLex)
 
 
-def create_lexeme(repo, lexeme, lang, catLex, claims=None):
+def create_lexeme(repo, lemma: str, lang: Language, catLex: str, claims=None) -> Lexeme:
     """
     Creates a lexeme
 
-    @param lexeme: value of the lexeme
+    @param lemma: value of the lexeme
     @param lang: language
     @param catLex: lexicographical category
     @param claims: claims to add to the lexeme
-    @returns: Object of type Lexeme or None if creation failed
+    @returns: Object of type Lexeme
     """
 
     # Create the json with the lexeme's data
     data_lex = json.dumps(
         {
             "type": "lexeme",
-            "lemmas": {lang.short: {"value": lexeme, "language": lang.short}},
+            "lemmas": {lang.short: {"value": lemma, "language": lang.short}},
             "language": lang.qid,
             "lexicalCategory": catLex,
             "forms": [],
