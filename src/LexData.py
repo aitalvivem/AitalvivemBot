@@ -3,61 +3,63 @@ import json
 
 import requests
 
-USER_NAME = None
-USER_PASS = None
+
+class wikidataSession:
+    URL = "https://www.wikidata.org/w/api.php"
+
+    def __init__(self, username, password):
+        self.username = username
+        self.password = password
+        self.S = requests.Session()
+        self.login()
+
+    def login(self):
+        # Ask for a token
+        PARAMS_1 = {
+            "action": "query",
+            "meta": "tokens",
+            "type": "login",
+            "format": "json",
+        }
+
+        R = self.S.get(url=self.URL, params=PARAMS_1)
+        DATA = R.json()
+
+        LOGIN_TOKEN = DATA["query"]["tokens"]["logintoken"]
+
+        # connexion request
+        PARAMS_2 = {
+            "action": "login",
+            "lgname": self.username,
+            "lgpassword": self.password,
+            "format": "json",
+            "lgtoken": LOGIN_TOKEN,
+        }
+
+        self.S.post(self.URL, data=PARAMS_2)
+        PARAMS_3 = {"action": "query", "meta": "tokens", "format": "json"}
+
+        R = self.S.get(url=self.URL, params=PARAMS_3)
+        DATA = R.json()
+        self.CSRF_TOKEN = DATA["query"]["tokens"]["csrftoken"]
+
+    def post(self, data):
+        if data.get("token") == "__AUTO__":
+            data["token"] = self.CSRF_TOKEN
+        R = self.S.post(self.URL, params=data)
+        return R.json()
+
+    def get(self, data):
+        R = self.S.get(self.URL, params=data)
+        return R.json()
 
 
-def setCo(user_name, user_pass):
-    global USER_NAME, USER_PASS
-    USER_NAME = user_name
-    USER_PASS = user_pass
-
-
-def coApi(URL, S):
-    """
-    This function connect the Bot to a wikidata account and ask for a CSRF token
-    """
-
-    global USER_NAME, USER_PASS
-
-    # Ask for a token
-    PARAMS_1 = {"action": "query", "meta": "tokens", "type": "login", "format": "json"}
-
-    R = S.get(url=URL, params=PARAMS_1)
-    DATA = R.json()
-
-    LOGIN_TOKEN = DATA["query"]["tokens"]["logintoken"]
-
-    # connexion request
-    PARAMS_2 = {
-        "action": "login",
-        "lgname": USER_NAME,
-        "lgpassword": USER_PASS,
-        "format": "json",
-        "lgtoken": LOGIN_TOKEN,
-    }
-
-    R = S.post(URL, data=PARAMS_2)
-
-    # ask for a CSRF token
-    PARAMS_3 = {"action": "query", "meta": "tokens", "format": "json"}
-
-    R = S.get(url=URL, params=PARAMS_3)
-    DATA = R.json()
-    CSRF_TOKEN = DATA["query"]["tokens"]["csrftoken"]
-
-    return CSRF_TOKEN
-
-
-def chercheLex(info, lg, catLex, declaLex):
+def get_or_create_lexeme(repo, info, lg, catLex, declaLex):
     """
     This function search for a lexeme in the wikidata database
-        If the function find the lexeme it return the id
-        else the function call the createLex function
+        If the function finds the lexeme it returns the id
+        else the function calls the createLex function
     """
-
-    S = requests.Session()
-    URL = "https://www.wikidata.org/w/api.php"
 
     PARAMS = {
         "action": "wbsearchentities",
@@ -67,8 +69,7 @@ def chercheLex(info, lg, catLex, declaLex):
         "format": "json",
     }
 
-    R = S.get(url=URL, params=PARAMS)
-    DATA = R.json()
+    DATA = repo.get(PARAMS)
 
     lexExists = False
 
@@ -80,7 +81,7 @@ def chercheLex(info, lg, catLex, declaLex):
                 and item["match"]["language"] == lg["libLg"]
             ):  # TEST
                 # Check the grammaticals features
-                lexQid = Lexeme(item["id"]).getQidCat()
+                lexQid = Lexeme(repo, item["id"]).getQidCat()
                 if lexQid == 1:
                     return 0, 3
 
@@ -88,7 +89,7 @@ def chercheLex(info, lg, catLex, declaLex):
                     idLex = item["id"]
 
                     # Check the claims
-                    infoLex = Lexeme(idLex).getQidCat()
+                    infoLex = Lexeme(repo, idLex).getQidCat()
                     if infoLex != 1:
                         compt = 0
                         for cle, values in declaLex.items():
@@ -106,15 +107,15 @@ def chercheLex(info, lg, catLex, declaLex):
                             break
 
         # else Create the lexeme
-        if lexExists == False:
-            return createLex(info, lg, catLex, declaLex)
+        if not lexExists:
+            return createLex(repo, info, lg, catLex, declaLex)
         else:
             return idLex, 0
     except:
         return 0, 1
 
 
-def createLex(lexeme, lg, catLex, declaLex):
+def createLex(repo, lexeme, lg, catLex, declaLex):
     """
     Creates a lexeme
 
@@ -124,11 +125,6 @@ def createLex(lexeme, lg, catLex, declaLex):
     @param declaLex: claims to add to the lexeme
     @returns: Object of type Lexeme or None if creation failed
     """
-
-    S = requests.Session()
-    URL = "https://www.wikidata.org/w/api.php"
-
-    CSRF_TOKEN = coApi(URL, S)
 
     langue = lg["libLg"]
     codeLangue = lg["codeLg"]
@@ -150,17 +146,16 @@ def createLex(lexeme, lg, catLex, declaLex):
         "format": "json",
         "bot": "1",
         "new": "lexeme",
-        "token": CSRF_TOKEN,
+        "token": "__AUTO__",
         "data": data_lex,
     }
 
-    R = S.post(URL, data=PARAMS)
-    DATA = R.json()
+    DATA = repo.post(PARAMS)
     # Get the id of the new lexeme
     idLex = DATA["entity"]["id"]
 
     print("--Created lexeme : idLex = ", idLex)
-    lexeme = Lexeme(idLex)
+    lexeme = Lexeme(repo, idLex)
 
     if declaLex:
         try:
@@ -219,7 +214,8 @@ class Sense(dict):
 
 
 class Lexeme:
-    def __init__(self, idLex):
+    def __init__(self, repo, idLex):
+        self.repo = repo
         self.getLex(idLex)
 
     def getLex(self, idLex):
@@ -231,13 +227,9 @@ class Lexeme:
         @returns: Simplified object representation of Lexeme
         """
 
-        S = requests.Session()
-        URL = "https://www.wikidata.org/w/api.php"
-
         PARAMS = {"action": "wbgetentities", "format": "json", "ids": idLex}
 
-        R = S.post(URL, data=PARAMS)
-        DATA = R.json()
+        DATA = self.repo.post(PARAMS)
 
         self.DATA = DATA["entities"][idLex]
 
@@ -300,11 +292,6 @@ class Lexeme:
              2) we call the __setClaim__ function to add claims
         """
 
-        S = requests.Session()
-        URL = "https://www.wikidata.org/w/api.php"
-
-        CSRF_TOKEN = coApi(URL, S)
-
         langue = lg["libLg"]
 
         # Create the json with the lexeme's data
@@ -320,13 +307,12 @@ class Lexeme:
             "action": "wbladdform",
             "format": "json",
             "lexemeId": self.id(),
-            "token": CSRF_TOKEN,
+            "token": "__AUTO__",
             "bot": "1",
             "data": data_form,
         }
 
-        R = S.post(URL, data=PARAMS)
-        DATA = R.json()
+        DATA = self.repo.post(PARAMS)
         idForm = DATA["form"]["id"]
         print("---Created form: idForm = ", idForm)
 
@@ -348,11 +334,6 @@ class Lexeme:
         This function adds a claim to an existing form/lexeme
         """
 
-        S = requests.Session()
-        URL = "https://www.wikidata.org/w/api.php"
-
-        CSRF_TOKEN = coApi(URL, S)
-
         claim_value = json.dumps({"entity-type": "item", "numeric-id": idItem[1:]})
 
         PARAMS = {
@@ -363,11 +344,10 @@ class Lexeme:
             "bot": "1",
             "property": idProp,
             "value": claim_value,
-            "token": CSRF_TOKEN,
+            "token": "__AUTO__",
         }
 
-        R = S.post(URL, data=PARAMS)
-        DATA = R.json()
+        DATA = self.repo.post(PARAMS)
 
         try:
             assert "claim" in DATA
