@@ -292,32 +292,7 @@ def getLex(idLex):
         "senses": [],
     }
 
-    # I get the forms
-    for form in DATA["entities"][idLex]["forms"]:
-        forme = {
-            "idForm": form["id"],
-            "representation": form["representations"][lg]["value"],
-            "catGram": form["grammaticalFeatures"],
-            "declaration": {},
-        }
-        result["formes"] += [forme]
-
-    # I get the senses
-    for sense in DATA["entities"][idLex]["senses"]:
-        sensee = {
-            "idForm": sense["id"],
-            "representation": sense["glosses"][lg]["value"],
-            "declaration": DATA["entities"]["L2"]["forms"][0]["claims"],
-        }
-        result["senses"] += [sensee]
-
-    # I get the claims
-    PARAMS_1 = {"action": "wbgetclaims", "format": "json", "entity": result["idLex"]}
-
-    R = S.get(url=URL, params=PARAMS_1)
-    DATA = R.json()
-
-    for prop, value in DATA["claims"].items():
+    for prop, value in DATA["entities"][idLex]["claims"].items():
         if prop not in result["declaration"]:
             result["declaration"][prop] = []
         for concept in value:
@@ -328,22 +303,31 @@ def getLex(idLex):
             except:
                 pass
 
-    # I get the claims for each forms of the lexeme
-    for form in result["formes"]:
-        PARAMS_2 = {"action": "wbgetclaims", "format": "json", "entity": form["idForm"]}
-
-        R = S.get(url=URL, params=PARAMS_2)
-        DATA = R.json()
-
-        dico = DATA["claims"]
-
-        for prop, value in dico.items():
-            if prop not in form["declaration"]:
-                form["declaration"][prop] = []
+    # I get the forms
+    for form in DATA["entities"][idLex]["forms"]:
+        forme = {
+            "idForm": form["id"],
+            "representation": form["representations"][lg]["value"],
+            "catGram": form["grammaticalFeatures"],
+            "declaration": {},
+        }
+        for prop, value in form["claims"].items():
+            if prop not in forme["declaration"]:
+                forme["declaration"][prop] = []
             for concept in value:
-                form["declaration"][prop].append(
+                forme["declaration"][prop].append(
                     concept["mainsnak"]["datavalue"]["value"]
                 )
+        result["formes"] += [forme]
+
+    # I get the senses
+    for sense in DATA["entities"][idLex]["senses"]:
+        sensee = {
+            "idForm": sense["id"],
+            "representation": sense["glosses"][lg]["value"],
+            "declaration": DATA["entities"]["L2"]["forms"][0]["claims"],
+        }
+        result["senses"] += [sensee]
 
     return result
 
