@@ -58,7 +58,7 @@ class wikidataSession:
         """
         if data.get("token") == "__AUTO__":
             data["token"] = self.CSRF_TOKEN
-        R = self.S.post(self.URL, params=data, headers=self.headers)
+        R = self.S.post(self.URL, data=data, headers=self.headers)
         return R.json()
 
     def get(self, data):
@@ -184,6 +184,38 @@ class Lexeme(dict):
     def senses(self):
         return [Sense(s) for s in super().get("senses")]
 
+    def createSense(self, glosses, declaForm=None):
+        # Create the json with the lexeme's data
+        data_sense = {"glosses": {}}
+        for lang, gloss in glosses.items():
+            data_sense["glosses"][lang] = {"value": gloss, "language": lang}
+
+        # send a post to edit a form
+        PARAMS = {
+            "action": "wbladdsense",
+            "format": "json",
+            "lexemeId": self["id"],
+            "token": "__AUTO__",
+            "bot": "1",
+            "data": str(data_sense),
+        }
+
+        DATA = self.repo.post(PARAMS)
+        idSense = DATA["sense"]["id"]
+        print("---Created sense: idsense = ", idSense)
+
+        # Add the claims
+        if declaForm:
+            for cle, values in declaForm.items():
+                for value in values:
+                    res = self.__setClaim__(idSense, cle, value)
+                    if res == 1:
+                        self.getLex(self["id"])
+                        return 2
+        self.getLex(self["id"])
+
+        return idSense  # TODO: Return Sense
+
     def createForm(self, form, infosGram, lg, declaForm=None):
         """
         this function creates a form for a given lexeme (id):
@@ -217,15 +249,14 @@ class Lexeme(dict):
 
         # Add the claims
         if declaForm:
-            try:
-                for cle, values in declaForm.items():
-                    for value in values:
-                        res = self.__setClaim__(idForm, cle, value)
-                        if res == 1:
-                            return 2
-            except:
-                return 1
+            for cle, values in declaForm.items():
+                for value in values:
+                    res = self.__setClaim__(idForm, cle, value)
+                    if res == 1:
+                        self.getLex(self["id"])
+                        return 2
 
+        self.getLex(self["id"])
         return 0
 
     def __setClaim__(self, idForm, idProp, idItem):
@@ -246,9 +277,8 @@ class Lexeme(dict):
             "token": "__AUTO__",
         }
 
-        DATA = self.repo.post(PARAMS)
-
         try:
+            DATA = self.repo.post(PARAMS)
             assert "claim" in DATA
             print("---claim added")
             return 0
