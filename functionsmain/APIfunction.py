@@ -1,8 +1,6 @@
 # -*-coding:utf-8-*
-import csv
 import json
 
-import pysnooper
 import requests
 
 
@@ -13,14 +11,13 @@ def setCo(user_name, user_pass):
 
 
 def coApi(URL, S):
-
     """
-	This function connect the Bot to a wikidata account and ask for a CSRF token
-	"""
+    This function connect the Bot to a wikidata account and ask for a CSRF token
+    """
 
     global USER_NAME, USER_PASS
 
-    # I ask for a token
+    # Ask for a token
     PARAMS_1 = {"action": "query", "meta": "tokens", "type": "login", "format": "json"}
 
     R = S.get(url=URL, params=PARAMS_1)
@@ -50,12 +47,11 @@ def coApi(URL, S):
 
 
 def chercheLex(info, lg, catLex, declaLex):
-
     """
-	This function search for a lexeme in the wikidata database
-		If the function find the lexeme it return the id
-		else the function call the createLex function
-	"""
+    This function search for a lexeme in the wikidata database
+        If the function find the lexeme it return the id
+        else the function call the createLex function
+    """
 
     S = requests.Session()
     URL = "https://www.wikidata.org/w/api.php"
@@ -80,7 +76,7 @@ def chercheLex(info, lg, catLex, declaLex):
                 item["match"]["text"] == info
                 and item["match"]["language"] == lg["libLg"]
             ):  # TEST
-                # I check the grammaticals features
+                # Check the grammaticals features
                 lexQid = getQidCat(item["id"])
                 if lexQid == 1:
                     return 0, 3
@@ -88,15 +84,15 @@ def chercheLex(info, lg, catLex, declaLex):
                 if catLex == lexQid:
                     idLex = item["id"]
 
-                    # I check the claims
+                    # Check the claims
                     infoLex = getLex(idLex)
                     if infoLex != 1:
                         compt = 0
                         for cle, values in declaLex.items():
                             for value in values:
                                 if (
-                                    cle not in infoLex["declaration"].keys()
-                                    or value not in infoLex["declaration"][cle]
+                                    cle not in infoLex["claim"].keys()
+                                    or value not in infoLex["claim"][cle]
                                 ):
                                     compt += 1
                                     break
@@ -106,7 +102,7 @@ def chercheLex(info, lg, catLex, declaLex):
                             print("--lexème retourné, id =", idLex)  # trace
                             break
 
-        # else I create the lexeme
+        # else Create the lexeme
         if lexExists == False:
             # print('chercheLex : le lexeme n\'existe pas, je le crée') #trace
             return createLex(info, lg, catLex, declaLex)
@@ -117,13 +113,12 @@ def chercheLex(info, lg, catLex, declaLex):
 
 
 def createLex(lexeme, lg, catLex, declaLex):
-
     """
-	this function create a lexeme and return the id :
-		1)	create and send the request
-		2)	call setClaim() to create a claim
-		3)	return the id
-	"""
+    this function create a lexeme and return the id :
+        1)    create and send the request
+        2)    call setClaim() to create a claim
+        3)    return the id
+    """
 
     S = requests.Session()
     URL = "https://www.wikidata.org/w/api.php"
@@ -133,7 +128,7 @@ def createLex(lexeme, lg, catLex, declaLex):
     langue = lg["libLg"]
     codeLangue = lg["codeLg"]
 
-    # I create the json with the lexeme's data
+    # Create the json with the lexeme's data
     data_lex = json.dumps(
         {
             "type": "lexeme",
@@ -144,7 +139,7 @@ def createLex(lexeme, lg, catLex, declaLex):
         }
     )
 
-    # I send a post to edit a lexeme
+    # Send a post to edit a lexeme
     PARAMS = {
         "action": "wbeditentity",
         "format": "json",
@@ -158,14 +153,14 @@ def createLex(lexeme, lg, catLex, declaLex):
     DATA = R.json()
 
     try:
-        # I get the id of the lexeme
+        # Get the id of the lexeme
         idLex = DATA["entity"]["id"]
 
         print("--lexeme créé : idLex = ", idLex)  # trace
 
-        for cle, valeurs in declaLex.items():
-            for valeur in valeurs:
-                res = setClaim(idLex, cle, valeur)
+        for cle, values in declaLex.items():
+            for value in values:
+                res = setClaim(idLex, cle, value)
                 if res == 1:
                     return idLex, 4
 
@@ -175,12 +170,11 @@ def createLex(lexeme, lg, catLex, declaLex):
 
 
 def createForm(idLex, form, infosGram, lg, declaForm):
-
     """
-	cette fonction crée une forme pour un lexeme (id) donné :
-		1)	on crée et on envoie la requete
-		2)	on appele la fonction setClaim pour ajouter les déclarations
-	"""
+    this function creates a form for a given lexeme (id):
+         1) we create and send the request
+         2) we call the setClaim function to add claims
+    """
 
     S = requests.Session()
     URL = "https://www.wikidata.org/w/api.php"
@@ -189,7 +183,7 @@ def createForm(idLex, form, infosGram, lg, declaForm):
 
     langue = lg["libLg"]
 
-    # I create the json with the lexeme's data
+    # Create the json with the lexeme's data
     data_form = json.dumps(
         {
             "representations": {langue: {"value": form, "language": langue}},
@@ -215,10 +209,10 @@ def createForm(idLex, form, infosGram, lg, declaForm):
 
         print("---forme crée : idForm = ", idForm)  # trace
 
-        # I add the claims
-        for cle, valeurs in declaForm.items():
-            for valeur in valeurs:
-                res = setClaim(idForm, cle, valeur)
+        # Add the claims
+        for cle, values in declaForm.items():
+            for value in values:
+                res = setClaim(idForm, cle, value)
                 if res == 1:
                     return 2
 
@@ -228,10 +222,9 @@ def createForm(idLex, form, infosGram, lg, declaForm):
 
 
 def setClaim(idForm, idProp, idItem):
-
     """
-	This function add a claim to a form
-	"""
+    This function add a claim to a form
+    """
 
     S = requests.Session()
     URL = "https://www.wikidata.org/w/api.php"
@@ -258,7 +251,7 @@ def setClaim(idForm, idProp, idItem):
 
     try:
         verif = DATA["claim"]
-        print("---déclaration ajoutée")  # trace
+        print("---claim added")  # trace
         return 0
     except:
         return 1
@@ -267,6 +260,10 @@ def setClaim(idForm, idProp, idItem):
 def getLex(idLex):
     """
     this function gets and returns the data of a lexeme for a given id
+
+    @type idLex: string
+    @params idLex: Lexeme identifier (example: "L2")
+    @returns: Simplified object representation of Lexeme
     """
 
     S = requests.Session()
@@ -279,53 +276,49 @@ def getLex(idLex):
 
     dico = DATA["entities"][idLex]["lemmas"]
 
-    for cle, valeur in dico.items():
-        lg = valeur["language"]
-        lemme = valeur["value"]
+    for _, value in dico.items():
+        lg = value["language"]
+        lemme = value["value"]
 
     result = {
         "idLex": DATA["entities"][idLex]["id"],
         "lemme": lemme,
         "lg": lg,
         "formes": [],
-        "declaration": {},
+        "claim": {},
         "senses": [],
     }
 
     for prop, value in DATA["entities"][idLex]["claims"].items():
-        if prop not in result["declaration"]:
-            result["declaration"][prop] = []
+        if prop not in result["claim"]:
+            result["claim"][prop] = []
         for concept in value:
             try:
-                result["declaration"][prop].append(
-                    concept["mainsnak"]["datavalue"]["value"]
-                )
+                result["claim"][prop].append(concept["mainsnak"]["datavalue"]["value"])
             except:
                 pass
 
-    # I get the forms
+    # Get the forms
     for form in DATA["entities"][idLex]["forms"]:
         forme = {
             "idForm": form["id"],
             "representation": form["representations"][lg]["value"],
             "catGram": form["grammaticalFeatures"],
-            "declaration": {},
+            "claim": {},
         }
         for prop, value in form["claims"].items():
-            if prop not in forme["declaration"]:
-                forme["declaration"][prop] = []
+            if prop not in forme["claim"]:
+                forme["claim"][prop] = []
             for concept in value:
-                forme["declaration"][prop].append(
-                    concept["mainsnak"]["datavalue"]["value"]
-                )
+                forme["claim"][prop].append(concept["mainsnak"]["datavalue"]["value"])
         result["formes"] += [forme]
 
-    # I get the senses
+    # Get the senses
     for sense in DATA["entities"][idLex]["senses"]:
         sensee = {
             "idForm": sense["id"],
             "representation": sense["glosses"][lg]["value"],
-            "declaration": DATA["entities"]["L2"]["forms"][0]["claims"],
+            "claim": DATA["entities"]["L2"]["forms"][0]["claims"],
         }
         result["senses"] += [sensee]
 
@@ -333,10 +326,9 @@ def getLex(idLex):
 
 
 def getQidCat(idLex):
-
     """
-	This function returns the id of the lexical Category of a lexeme for a given id
-	"""
+    This function returns the id of the lexical Category of a lexeme for a given id
+    """
 
     S = requests.Session()
     URL = "https://www.wikidata.org/w/api.php"
