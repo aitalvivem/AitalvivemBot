@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="LexData",
-    version="0.1",
+    version="0.1.1",
     author="Michael F. Schoenitzer",
     author_email="michael@schoenitzer.de",
     description="A tiny package for editing Lexemes on Wikidata",
