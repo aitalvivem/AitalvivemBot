@@ -1,7 +1,12 @@
 # -*-coding:utf-8-*
 import json
+import logging
+from dataclasses import dataclass
 
 import requests
+
+name = "LexData"
+version = "0.1"
 
 
 class wikidataSession:
@@ -36,10 +41,10 @@ class wikidataSession:
         # connexion request
         PARAMS_2 = {
             "action": "login",
-            "lgname": self.username,
-            "lgpassword": self.password,
+            "langname": self.username,
+            "langpassword": self.password,
             "format": "json",
-            "lgtoken": LOGIN_TOKEN,
+            "langtoken": LOGIN_TOKEN,
         }
         self.post(PARAMS_2)
 
@@ -59,6 +64,10 @@ class wikidataSession:
         if data.get("token") == "__AUTO__":
             data["token"] = self.CSRF_TOKEN
         R = self.S.post(self.URL, data=data, headers=self.headers)
+        if R.status_code != 200:
+            raise Exception(
+                "POST was unsuccessfull ({}): {}".format(R.status_code, R.text())
+            )
         return R.json()
 
     def get(self, data):
@@ -70,7 +79,21 @@ class wikidataSession:
         @return: Answer form the server as Objekt
         """
         R = self.S.get(self.URL, params=data, headers=self.headers)
+        if R.status_code != 200:
+            raise Exception(
+                "GET was unsuccessfull ({}): {}".format(R.status_code, R.text())
+            )
         return R.json()
+
+
+@dataclass
+class Language:
+    """
+    Dataclass representing a language
+    """
+
+    short: str
+    qid: str
 
 
 class Claim(dict):
@@ -123,7 +146,7 @@ class Sense(dict):
         return self["glosses"][lang]["value"]
 
     def claims(self):
-        return [Claim(c) for c in self["claims"]]
+        return {k: [Claim(c) for c in v] for k, v in self["claims"].items()}
 
     def __repr__(self):
         return "<Sense '{}'>".format(self.glosse())
@@ -147,7 +170,7 @@ class Lexeme(dict):
         this function gets and returns the data of a lexeme for a given id
 
         @type idLex: string
-        @params idLex: Lexeme identifier (example: "L2")
+        @param idLex: Lexeme identifier (example: "L2")
         @returns: Simplified object representation of Lexeme
         """
 
@@ -165,16 +188,9 @@ class Lexeme(dict):
     def language(self):
         return list(self["lemmas"].values())[0]["language"]
 
+    @property
     def claims(self):
-        claims = {}
-        for prop, value in self["claims"].items():
-            if prop not in claims:
-                claims[prop] = []
-            for concept in value:
-                try:
-                    claims[prop].append(concept["mainsnak"]["datavalue"]["value"])
-                except:
-                    pass
+        return {k: [Claim(c) for c in v] for k, v in super().get("claims").items()}
 
     @property
     def forms(self):
@@ -184,56 +200,63 @@ class Lexeme(dict):
     def senses(self):
         return [Sense(s) for s in super().get("senses")]
 
-    def createSense(self, glosses, declaForm=None):
-        # Create the json with the lexeme's data
+    def createSense(self, glosses, claims=None):
+        """
+        Create a sense for the lexeme
+
+        @param glosses: glosses for the sense
+        @param claims: claims to add to the new form
+        """
+        # Create the json with the sense's data
         data_sense = {"glosses": {}}
         for lang, gloss in glosses.items():
             data_sense["glosses"][lang] = {"value": gloss, "language": lang}
 
-        # send a post to edit a form
+        # send a post to add sense to lexeme
         PARAMS = {
             "action": "wbladdsense",
             "format": "json",
             "lexemeId": self["id"],
             "token": "__AUTO__",
             "bot": "1",
-            "data": str(data_sense),
+            "data": json.dumps(data_sense),
         }
-
         DATA = self.repo.post(PARAMS)
         idSense = DATA["sense"]["id"]
-        print("---Created sense: idsense = ", idSense)
+        logging.info("---Created sense: idsense = %s", idSense)
 
         # Add the claims
-        if declaForm:
-            for cle, values in declaForm.items():
-                for value in values:
-                    res = self.__setClaim__(idSense, cle, value)
-                    if res == 1:
-                        self.getLex(self["id"])
-                        return 2
+        self.__setClaims__(idSense, claims)
         self.getLex(self["id"])
 
-        return idSense  # TODO: Return Sense
+        return idSense
 
-    def createForm(self, form, infosGram, lg, declaForm=None):
+    def createForm(self, form, infosGram, language=None, claims=None):
         """
-        this function creates a form for a given lexeme (id):
-             1) we create and send the request
-             2) we call the __setClaim__ function to add claims
+        Create a form for the lexeme
+
+        @param form: the new form to add
+        @param infosGram: grammatical features
+        @param language: the language of the form
+        @param claims: claims to add to the new form
         """
 
-        langue = lg["libLg"]
+        if language is None:
+            languagename = self.language
+        else:
+            languagename = language.short
 
-        # Create the json with the lexeme's data
+        # Create the json with the forms's data
         data_form = json.dumps(
             {
-                "representations": {langue: {"value": form, "language": langue}},
+                "representations": {
+                    languagename: {"value": form, "language": languagename}
+                },
                 "grammaticalFeatures": infosGram,
             }
         )
 
-        # send a post to edit a form
+        # send a post to add form to lexeme
         PARAMS = {
             "action": "wbladdform",
             "format": "json",
@@ -242,26 +265,47 @@ class Lexeme(dict):
             "bot": "1",
             "data": data_form,
         }
-
         DATA = self.repo.post(PARAMS)
         idForm = DATA["form"]["id"]
-        print("---Created form: idForm = ", idForm)
+        logging.info("---Created form: idForm = %s", idForm)
 
         # Add the claims
-        if declaForm:
-            for cle, values in declaForm.items():
-                for value in values:
-                    res = self.__setClaim__(idForm, cle, value)
-                    if res == 1:
-                        self.getLex(self["id"])
-                        return 2
+        self.__setClaims__(idForm, claims)
 
         self.getLex(self["id"])
-        return 0
+        return idForm
 
-    def __setClaim__(self, idForm, idProp, idItem):
+    def createClaims(self, claims):
         """
-        This function adds a claim to an existing form/lexeme
+        Add claims to the Lexeme
+
+        @type  claims: dict(List[dict()])
+        @param claims: The set of claims to be added
+        """
+        self.__setClaims__(self["id"], claims)
+
+    def __setClaims__(self, parent, claims):
+        """
+        Add claims to a Lexeme, Form or Sense
+
+        @type  parent: string
+        @param parent: the id of the Lexeme/Form/Sense
+        @type  claims: dict(List[dict()])
+        @param claims: The set of claims to be added
+        """
+        for cle, values in claims.items():
+            for value in values:
+                self.__setClaim__(parent, cle, value)
+        self.getLex(self["id"])
+
+    def __setClaim__(self, parent, idProp, idItem):
+        """
+        This function adds a claim to an existing lexeme/form/sense
+
+        @type  parent: string
+        @param parent: the id of the Lexeme/Form/Sense
+        @param idProp: id of the property
+        @param idItem: id of the Item
         """
 
         claim_value = json.dumps({"entity-type": "item", "numeric-id": idItem[1:]})
@@ -269,7 +313,7 @@ class Lexeme(dict):
         PARAMS = {
             "action": "wbcreateclaim",
             "format": "json",
-            "entity": idForm,
+            "entity": parent,
             "snaktype": "value",
             "bot": "1",
             "property": idProp,
@@ -280,93 +324,66 @@ class Lexeme(dict):
         try:
             DATA = self.repo.post(PARAMS)
             assert "claim" in DATA
-            print("---claim added")
-            return 0
-        except:
-            return 1
+            logging.info("---claim added")
+        except Exception as e:
+            raise Exception("Unknown error adding claim", e)
 
 
-def get_or_create_lexeme(repo, info, lg, catLex, declaLex):
+def get_or_create_lexeme(repo, lemma, lang, catLex):
     """
-    This function search for a lexeme in the wikidata database
-        If the function finds the lexeme it returns the id
-        else the function calls the createLex function
+    Search for a lexeme in wikidata if not found, create it
+
+    @param repo: Wikidatasession
+    @param lemma: the lemma of the lexeme
+    @param lang: language of the lexeme
+    @param catLex: lexical Category of the lexeme
+    @rtype: Lexeme
+    @returns: Lexeme with the specified properties
     """
 
     PARAMS = {
         "action": "wbsearchentities",
-        "language": lg["libLg"],
+        "language": lang.short,
         "type": "lexeme",
-        "search": info,
+        "search": lemma,
         "format": "json",
     }
 
     DATA = repo.get(PARAMS)
 
-    lexExists = False
+    for item in DATA["search"]:
+        # if the lexeme exists
+        if (
+            item["match"]["text"] == lemma
+            and item["match"]["language"] == lang.short
+            and catLex == Lexeme(repo, item["id"])["lexicalCategory"]
+        ):
+            idLex = item["id"]
 
-    try:
-        for item in DATA["search"]:
-            # if the lexeme exists
-            if (
-                item["match"]["text"] == info
-                and item["match"]["language"] == lg["libLg"]
-            ):  # TEST
-                # Check the grammaticals features
-                lexQid = Lexeme(repo, item["id"]).getQidCat()
-                if lexQid == 1:
-                    return 0, 3
+            logging.info("--Found lexeme, id = %s", idLex)
+            return Lexeme(repo, idLex)
 
-                if catLex == lexQid:
-                    idLex = item["id"]
-
-                    # Check the claims
-                    infoLex = Lexeme(repo, idLex).getQidCat()
-                    if infoLex != 1:
-                        compt = 0
-                        for cle, values in declaLex.items():
-                            for value in values:
-                                if (
-                                    cle not in infoLex["claim"].keys()
-                                    or value not in infoLex["claim"][cle]
-                                ):
-                                    compt += 1
-                                    break
-
-                        if compt == 0:
-                            lexExists = True
-                            print("--Found lexeme, id =", idLex)
-                            break
-
-        # else Create the lexeme
-        if not lexExists:
-            return create_lexeme(repo, info, lg, catLex, declaLex)
-        else:
-            return idLex, 0
-    except:
-        return 0, 1
+    # Not found, create the lexeme
+    return create_lexeme(repo, lemma, lang, catLex)
 
 
-def create_lexeme(repo, lexeme, lg, catLex, declaLex):
+def create_lexeme(repo, lexeme, lang, catLex, claims=None):
     """
     Creates a lexeme
 
     @param lexeme: value of the lexeme
-    @param lg: language
+    @param lang: language
     @param catLex: lexicographical category
-    @param declaLex: claims to add to the lexeme
+    @param claims: claims to add to the lexeme
     @returns: Object of type Lexeme or None if creation failed
     """
-
-    langue = lg["libLg"]
-    codeLangue = lg["codeLg"]
 
     # Create the json with the lexeme's data
     data_lex = json.dumps(
         {
             "type": "lexeme",
-            "lemmas": {langue: {"value": lexeme, "language": langue}},
-            "language": codeLangue,
+            "lemmas": {lang.short: {"value": lexeme, "language": lang.short}},
+            "language": lang.qid,
             "lexicalCategory": catLex,
             "forms": [],
         }
@@ -386,17 +403,9 @@ def create_lexeme(repo, lexeme, lg, catLex, declaLex):
     # Get the id of the new lexeme
     idLex = DATA["entity"]["id"]
 
-    print("--Created lexeme : idLex = ", idLex)
+    logging.info("--Created lexeme : idLex = %s", idLex)
     lexeme = Lexeme(repo, idLex)
 
-    if declaLex:
-        try:
-            for cle, values in declaLex.items():
-                for value in values:
-                    res = lexeme.__setClaim__(idLex, cle, value)
-                    if res == 1:
-                        # TODO: raise error?
-                        return lexeme
-        except:
-            return None
+    lexeme.createClaims(claims)
+
     return lexeme

@@ -1,12 +1,12 @@
-# AitalvivemBot
-Here is few things you need to install before your start the bot.
+# Python bot framework for Lexemes on Wikidata
 
-First you need ton install the pywikibot framework (https://www.mediawiki.org/wiki/Manual:Pywikibot/Installation/fr) and the lxml library for python.
+This is a small library to create bots, scripts and tools about Wikidata
+Lexemes. It's philosophy is to have a transparent thin layer on top of the
+internal datastuctures enriched with convenient functions without hiding the
+power of the access to the internals.
 
-After dowloading the pywikibot framework and lmxl your can start the bot with the following command :
+LexData is still in beta phase and there fore some features are missing and
+functions might be renamed in future.
 
- cat \<xml file\> | python3 main.py \<username\> \<password\> (<lexeme_only>)
-
-The <lexeme_only> parameter is facultative.
-For more information please read the documentation (french or english version). You can find a description of the xml file in the "File description" section.
-To avoid errors please check the "Known issues" section of the documentation.
+The code of AitalvivemBot was used as a starting point, but probably theres not
+a single line of code that wasn't rewritten.
