@@ -59,9 +59,9 @@ class WikidataSession:
         filled in if __AUTO__ is given instead.
 
         :param data: Parameters to send via POST
-        :param data: Dict[str: 
-        :param str]) -> An: 
+        :type  data: Dict[str, str])
         :returns: Answer form the server as Objekt
+        :rtype: Any
 
         """
         if data.get("token") == "__AUTO__":
@@ -77,9 +77,9 @@ class WikidataSession:
         """Send a GET request to wikidata
 
         :param data: Parameters to send via GET
-        :param data: Dict[str: 
-        :param str]) -> An: 
+        :type  data: Dict[str, str]
         :returns: Answer form the server as Objekt
+        :rtype: Any
 
         """
         R = self.S.get(self.URL, params=data, headers=self.headers)
@@ -114,9 +114,19 @@ class Form(dict):
         self.update(form)
 
     def form(self) -> str:
+        """
+        String of the form value ("representation")
+
+        :rtype: str
+        """
         return list(self["representations"].values())[0]["value"]
 
     def claims(self) -> Dict[str, List[Claim]]:
+        """
+        All the claims of the Form
+
+        :rtype: Dict[str, List[Claim]]
+        """
         return {k: [Claim(c) for c in v] for k, v in self["claims"].items()}
 
     def __repr__(self) -> str:
@@ -134,6 +144,14 @@ class Sense(dict):
         self.update(form)
 
     def glosse(self, lang="en") -> str:
+        """
+        The gloss of the text in the specified language is available, otherwise
+        in englisch, and if that's not set too in an arbitrary set language
+
+        :param lang: language code of the wished language
+        :type  lang: str
+        :rtype: str
+        """
         if lang not in self["glosses"]:
             if "en" in self["glosses"]:
                 lang = "en"
@@ -142,6 +160,11 @@ class Sense(dict):
         return self["glosses"][lang]["value"]
 
     def claims(self) -> Dict[str, List[Claim]]:
+        """
+        All the claims of the Sense
+
+        :rtype: Dict[str, List[Claim]]
+        """
         return {k: [Claim(c) for c in v] for k, v in self["claims"].items()}
 
     def __repr__(self) -> str:
@@ -163,8 +186,8 @@ class Lexeme(dict):
         """this function gets and returns the data of a lexeme for a given id
 
         :param idLex: Lexeme identifier (example: "L2")
-        :param idLex: str: 
-        :returns: s: Simplified object representation of Lexeme
+        :type  idLex: str
+        :returns: Simplified object representation of Lexeme
 
         """
 
@@ -176,31 +199,57 @@ class Lexeme(dict):
 
     @property
     def lemma(self) -> str:
+        """
+        the lemma of the lexeme as string
+
+        :rtype: str
+        """
         return list(self["lemmas"].values())[0]["value"]
 
     @property
     def language(self) -> str:
+        """
+        the language code of the lexeme as string
+
+        :rtype: str
+        """
+        return list(self["lemmas"].values())[0]["value"]
         return list(self["lemmas"].values())[0]["language"]
 
     @property
     def claims(self) -> Dict[str, List[Claim]]:
+        """
+        All the claims of the lexeme
+
+        :rtype: Dict[str, List[Claim]]
+        """
         return {k: [Claim(c) for c in v] for k, v in super().get("claims", {}).items()}
 
     @property
     def forms(self) -> List[Form]:
+        """
+        List of all forms
+
+        :rtype: List[Form]
+        """
         return [Form(f) for f in super().get("forms", [])]
 
     @property
     def senses(self) -> List[Sense]:
+        """
+        List of all senses
+
+        :rtype: List[Sense]
+        """
         return [Sense(s) for s in super().get("senses", [])]
 
     def createSense(self, glosses: Dict[str, str], claims=None) -> str:
         """Create a sense for the lexeme
 
         :param glosses: glosses for the sense
+        :type  glosses: Dict[str, str]
         :param claims: claims to add to the new form (Default value = None) -> st)
-        :param glosses: Dict[str: 
-        :param str]: 
+        :rtype: str
 
         """
         # Create the json with the sense's data
@@ -233,12 +282,14 @@ class Lexeme(dict):
         """Create a form for the lexeme
 
         :param form: the new form to add
+        :type  form: str
         :param infosGram: grammatical features
+        :type  infosGram: str
         :param language: the language of the form
+        :type  language: Optional[Language]
         :param claims: claims to add to the new form (Default value = None) -> st)
-        :param form: str: 
-        :param infosGram: str: 
-        :param language: Language:  (Default value = None)
+        :returns: The id of the form
+        :rtype: str
 
         """
 
@@ -288,10 +339,10 @@ class Lexeme(dict):
         """
         Add claims to a Lexeme, Form or Sense
 
-        @type  parent: string
-        @param parent: the id of the Lexeme/Form/Sense
-        @type  claims: dict(List[dict()])
-        @param claims: The set of claims to be added
+        :type  parent: string
+        :param parent: the id of the Lexeme/Form/Sense
+        :type  claims: dict(List[dict()])
+        :param claims: The set of claims to be added
         """
         for cle, values in claims.items():
             for value in values:
@@ -300,12 +351,12 @@ class Lexeme(dict):
 
     def __setClaim__(self, parent: str, idProp: str, idItem: str):
         """
-        This function adds a claim to an existing lexeme/form/sense
+        Add a claim to an existing lexeme/form/sense
 
-        @type  parent: string
-        @param parent: the id of the Lexeme/Form/Sense
-        @param idProp: id of the property
-        @param idItem: id of the Item
+        :type  parent: string
+        :param parent: the id of the Lexeme/Form/Sense
+        :param idProp: id of the property
+        :param idItem: id of the Item
         """
 
         claim_value = json.dumps({"entity-type": "item", "numeric-id": idItem[1:]})
@@ -332,14 +383,16 @@ class Lexeme(dict):
 def get_or_create_lexeme(repo, lemma: str, lang: Language, catLex: str) -> Lexeme:
     """Search for a lexeme in wikidata if not found, create it
 
-    :param repo: WikidataSession
+    :param repo: Wikidata Session
+    :type  repo: WikidataSession
     :param lemma: the lemma of the lexeme
+    :type  lemma: str
     :param lang: language of the lexeme
+    :type  lang: Language
     :param catLex: lexical Category of the lexeme
-    :param lemma: str: 
-    :param lang: Language: 
-    :param catLex: str) -> Lexem: 
-    :returns: s: Lexeme with the specified properties
+    :type  catLex: str
+    :returns: Lexeme with the specified properties (created or found)
+    :rtype: Lexeme
 
     """
 
@@ -372,15 +425,17 @@ def get_or_create_lexeme(repo, lemma: str, lang: Language, catLex: str) -> Lexem
 def create_lexeme(repo, lemma: str, lang: Language, catLex: str, claims=None) -> Lexeme:
     """Creates a lexeme
 
+    :param repo: Wikidata Session
+    :type  repo: WikidataSession
     :param lemma: value of the lexeme
+    :type  lemma: str
     :param lang: language
+    :type  lang: Language
     :param catLex: lexicographical category
     :param claims: claims to add to the lexeme (Default value = None) -> Lexem)
-    :param repo: 
-    :param lemma: str: 
-    :param lang: Language: 
-    :param catLex: str: 
-    :returns: s: Object of type Lexeme
+    :type  catLex: str
+    :returns: The created Lexeme
+    :rtype: Lexeme
 
     """
 
