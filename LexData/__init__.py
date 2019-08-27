@@ -11,9 +11,10 @@ version = "0.1.1"
 
 
 class WikidataSession:
-    """
-    Wikidata network and authentication session. Needed for everything this
+    """Wikidata network and authentication session. Needed for everything this
     framework does.
+
+
     """
 
     URL = "https://www.wikidata.org/w/api.php"
@@ -54,13 +55,14 @@ class WikidataSession:
         self.CSRF_TOKEN = DATA["query"]["tokens"]["csrftoken"]
 
     def post(self, data: Dict[str, str]) -> Any:
-        """
-        Send data to wikidata by POST request. The CSRF token is automatically
+        """Send data to wikidata by POST request. The CSRF token is automatically
         filled in if __AUTO__ is given instead.
 
-        @type data: Object
-        @param data: Parameters to send via POST
-        @return: Answer form the server as Objekt
+        :param data: Parameters to send via POST
+        :param data: Dict[str: 
+        :param str]) -> An: 
+        :returns: Answer form the server as Objekt
+
         """
         if data.get("token") == "__AUTO__":
             data["token"] = self.CSRF_TOKEN
@@ -72,12 +74,13 @@ class WikidataSession:
         return R.json()
 
     def get(self, data: Dict[str, str]) -> Any:
-        """
-        Send a GET request to wikidata
+        """Send a GET request to wikidata
 
-        @type data: Object
-        @param data: Parameters to send via GET
-        @return: Answer form the server as Objekt
+        :param data: Parameters to send via GET
+        :param data: Dict[str: 
+        :param str]) -> An: 
+        :returns: Answer form the server as Objekt
+
         """
         R = self.S.get(self.URL, params=data, headers=self.headers)
         if R.status_code != 200:
@@ -89,18 +92,14 @@ class WikidataSession:
 
 @dataclass
 class Language:
-    """
-    Dataclass representing a language
-    """
+    """Dataclass representing a language"""
 
     short: str
     qid: str
 
 
 class Claim(dict):
-    """
-    Wrapper around a dict to represent a Claim
-    """
+    """Wrapper around a dict to represent a Claim"""
 
     def __init__(self, claim: Dict):
         super().__init__()
@@ -108,9 +107,7 @@ class Claim(dict):
 
 
 class Form(dict):
-    """
-    Wrapper around a dict to represent a From
-    """
+    """Wrapper around a dict to represent a From"""
 
     def __init__(self, form: Dict):
         super().__init__()
@@ -130,9 +127,7 @@ class Form(dict):
 
 
 class Sense(dict):
-    """
-    Wrapper around a dict to represent a Sense
-    """
+    """Wrapper around a dict to represent a Sense"""
 
     def __init__(self, form: Dict):
         super().__init__()
@@ -157,9 +152,7 @@ class Sense(dict):
 
 
 class Lexeme(dict):
-    """
-    Wrapper around a dict to represent a Lexeme
-    """
+    """Wrapper around a dict to represent a Lexeme"""
 
     def __init__(self, repo: WikidataSession, idLex: str):
         super().__init__()
@@ -167,12 +160,12 @@ class Lexeme(dict):
         self.getLex(idLex)
 
     def getLex(self, idLex: str):
-        """
-        this function gets and returns the data of a lexeme for a given id
+        """this function gets and returns the data of a lexeme for a given id
 
-        @type idLex: string
-        @param idLex: Lexeme identifier (example: "L2")
-        @returns: Simplified object representation of Lexeme
+        :param idLex: Lexeme identifier (example: "L2")
+        :param idLex: str: 
+        :returns: s: Simplified object representation of Lexeme
+
         """
 
         PARAMS = {"action": "wbgetentities", "format": "json", "ids": idLex}
@@ -202,11 +195,13 @@ class Lexeme(dict):
         return [Sense(s) for s in super().get("senses", [])]
 
     def createSense(self, glosses: Dict[str, str], claims=None) -> str:
-        """
-        Create a sense for the lexeme
+        """Create a sense for the lexeme
 
-        @param glosses: glosses for the sense
-        @param claims: claims to add to the new form
+        :param glosses: glosses for the sense
+        :param claims: claims to add to the new form (Default value = None) -> st)
+        :param glosses: Dict[str: 
+        :param str]: 
+
         """
         # Create the json with the sense's data
         data_sense: Dict[str, Dict[str, Dict[str, str]]] = {"glosses": {}}
@@ -235,13 +230,16 @@ class Lexeme(dict):
     def createForm(
         self, form: str, infosGram: str, language: Language = None, claims=None
     ) -> str:
-        """
-        Create a form for the lexeme
+        """Create a form for the lexeme
 
-        @param form: the new form to add
-        @param infosGram: grammatical features
-        @param language: the language of the form
-        @param claims: claims to add to the new form
+        :param form: the new form to add
+        :param infosGram: grammatical features
+        :param language: the language of the form
+        :param claims: claims to add to the new form (Default value = None) -> st)
+        :param form: str: 
+        :param infosGram: str: 
+        :param language: Language:  (Default value = None)
+
         """
 
         if language is None:
@@ -279,11 +277,10 @@ class Lexeme(dict):
         return idForm
 
     def createClaims(self, claims):
-        """
-        Add claims to the Lexeme
+        """Add claims to the Lexeme
 
-        @type  claims: dict(List[dict()])
-        @param claims: The set of claims to be added
+        :param claims: The set of claims to be added
+
         """
         self.__setClaims__(self["id"], claims)
 
@@ -333,15 +330,17 @@ class Lexeme(dict):
 
 
 def get_or_create_lexeme(repo, lemma: str, lang: Language, catLex: str) -> Lexeme:
-    """
-    Search for a lexeme in wikidata if not found, create it
+    """Search for a lexeme in wikidata if not found, create it
 
-    @param repo: WikidataSession
-    @param lemma: the lemma of the lexeme
-    @param lang: language of the lexeme
-    @param catLex: lexical Category of the lexeme
-    @rtype: Lexeme
-    @returns: Lexeme with the specified properties
+    :param repo: WikidataSession
+    :param lemma: the lemma of the lexeme
+    :param lang: language of the lexeme
+    :param catLex: lexical Category of the lexeme
+    :param lemma: str: 
+    :param lang: Language: 
+    :param catLex: str) -> Lexem: 
+    :returns: s: Lexeme with the specified properties
+
     """
 
     PARAMS = {
@@ -371,14 +370,18 @@ def get_or_create_lexeme(repo, lemma: str, lang: Language, catLex: str) -> Lexem
 
 
 def create_lexeme(repo, lemma: str, lang: Language, catLex: str, claims=None) -> Lexeme:
-    """
-    Creates a lexeme
+    """Creates a lexeme
 
-    @param lemma: value of the lexeme
-    @param lang: language
-    @param catLex: lexicographical category
-    @param claims: claims to add to the lexeme
-    @returns: Object of type Lexeme
+    :param lemma: value of the lexeme
+    :param lang: language
+    :param catLex: lexicographical category
+    :param claims: claims to add to the lexeme (Default value = None) -> Lexem)
+    :param repo: 
+    :param lemma: str: 
+    :param lang: Language: 
+    :param catLex: str: 
+    :returns: s: Object of type Lexeme
+
     """
 
     # Create the json with the lexeme's data
