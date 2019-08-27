@@ -10,3 +10,10 @@ functions might be renamed in future.
 
 The code of AitalvivemBot was used as a starting point, but probably theres not
 a single line of code that wasn't rewritten.
+
+Install from pypi:
+```
+ $ pip install LexData
+```
+
+Read the docs: [https://nudin.github.io/LexData/](https://nudin.github.io/LexData/)
