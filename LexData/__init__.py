@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 import requests
 
 name = "LexData"
-version = "0.1.2"
+version = "0.1.3"
 
 
 class WikidataSession:
@@ -43,10 +43,10 @@ class WikidataSession:
         # connexion request
         PARAMS_2 = {
             "action": "login",
-            "langname": self.username,
-            "langpassword": self.password,
+            "lgname": self.username,
+            "lgpassword": self.password,
             "format": "json",
-            "langtoken": LOGIN_TOKEN,
+            "lgtoken": LOGIN_TOKEN,
         }
         self.post(PARAMS_2)
 
