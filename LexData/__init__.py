@@ -216,7 +216,6 @@ class Lexeme(dict):
 
         :rtype: str
         """
-        return list(self["lemmas"].values())[0]["value"]
         return list(self["lemmas"].values())[0]["language"]
 
     @property
