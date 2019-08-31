@@ -71,7 +71,10 @@ class WikidataSession:
             raise Exception(
                 "POST was unsuccessfull ({}): {}".format(R.status_code, R.text)
             )
-        return R.json()
+        DATA = R.json()
+        if "error" in DATA:
+            raise PermissionError("API returned error: " + str(DATA["error"]))
+        return DATA
 
     def get(self, data: Dict[str, str]) -> Any:
         """Send a GET request to wikidata
