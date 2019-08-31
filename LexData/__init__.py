@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 import requests
 
 name = "LexData"
-version = "0.1.1"
+version = "0.1.2"
 
 
 class WikidataSession:
