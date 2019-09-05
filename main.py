@@ -194,7 +194,7 @@ for lexeme in tei.xpath('.//form[@type="lemma"]'):
 	
 	infoLex = functionsmain.APIfunction.getLex(idLex)
 	
-	# si il y a une erreur dans la récupération des infos du lexeme, on envoie une erreur et on passe au lexème suivant
+	# if there were an error while getting the lexeme's features, I send an error and jump to the next lexeme
 	if infoLex==1:
 		fLog.write('erreur lexème "'+idlexxml+'" : erreur lors de la récupération des infos du lexeme\n')
 		err += 1
