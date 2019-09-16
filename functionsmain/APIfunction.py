@@ -176,9 +176,8 @@ def createLex(lexeme, lg, catLex, declaLex):
 def createForm(idLex, form, infosGram, lg, declaForm):
 
 	"""
-	cette fonction crée une forme pour un lexeme (id) donné :
-		1)	on crée et on envoie la requete
-		2)	on appele la fonction setClaim pour ajouter les déclarations
+	This function add a form to a lexeme for a given id :
+	
 	"""
 
 	S = requests.Session()
