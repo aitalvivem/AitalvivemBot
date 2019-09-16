@@ -8,3 +8,4 @@ from LexData import Language
 en = Language("en", "Q1860")
 de = Language("de", "Q188")
 fr = Language("fr", "Q150")
+oc = Language("oc", "Q14185")
