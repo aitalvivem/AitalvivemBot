@@ -11,12 +11,9 @@ import sys
 This Bot was made to automaticaly import lexicograficals data to the wikidata database.
 This Bot takes the datas from a xml file and uses the wikidata's framework pywikibot.
 To identifie itself to the wikidata API, the Bot needs a valid wikidata account.
-
 To run the bot use this command :
 	cat <file.xml> | python3 <user_name> <password> (<lexeme_only>)
-
 The lexeme_only parameter is facultative.
-
 To find more informations please read the documentation.
 You will find in the doc file the details of the functions used by the bot, an example of xml file, the detail of the utility of the lexeme_only parameter and a "known issues" section.
 """
@@ -52,6 +49,7 @@ except:
 
 # I create the log.txt file which will contains the errors messages
 fLog = open('log.txt','w')
+fInputs = open('inputs.csv','w')
 err = 0
 compteur = 0
 comptForm = 0
@@ -171,6 +169,7 @@ for lexeme in tei.xpath('.//form[@type="lemma"]'):
 	# I get the L-id of the lexeme (if the lexeme don't exists, i create it) and then i get the data of the lexeme
 	idLex, chercheLerr = functionsmain.APIfunction.chercheLex(lemme, lg, catLex, declaLex)
 	
+	
 	# if there were an error when researching the lexeme, I send an error and jump to the next lexeme
 	if chercheLerr==1:
 		fLog.write('erreur lexème "'+idlexxml+'" : erreur lors de la recherche du lexeme\n')
@@ -192,6 +191,7 @@ for lexeme in tei.xpath('.//form[@type="lemma"]'):
 		err += 1
 		continue
 	
+	fInputs.write(idlexxml+"§"+idLex+"\n")
 	infoLex = functionsmain.APIfunction.getLex(idLex)
 	
 	# if there were an error while getting the lexeme's features, I send an error and jump to the next lexeme
@@ -318,43 +318,47 @@ for lexeme in tei.xpath('.//form[@type="lemma"]'):
 				else:
 					# I create the form
 					# print('main : les catégories sont différentes, je crée une nouvelle forme') # trace
-					res = functionsmain.APIfunction.createForm(idLex, form, infosGram, lg, declaForm) 
+					idForm = functionsmain.APIfunction.createForm(idLex, form, infosGram, lg, declaForm) 
 					
 					# if there is an error while creating the form, I send an error and jump to the next form
-					if res==1:
+					if idForm==1:
 						fLog.write('erreur lexème "'+idlexxml+'" forme "'+idformxml+'" : erreur lors de la création de la forme\n')
 						err += 1
 						continue
 					
 					# if there is an error in setClaim creating the form, I send an error and jump to the next form
-					if res==2:
+					if idForm==2:
 						fLog.write('erreur lexème "'+idlexxml+'" forme "'+idformxml+'" : erreur dans la fonction setClaim lors de la création de la forme\n')
 						err += 1
 						continue
 						
+					fInputs.write(idformxml+"§"+idForm+"\n")
 					
 			# I create the form	
 			else:
 				# print('main : la forme n\'existe pas je la crée') # trace
-				res = functionsmain.APIfunction.createForm(idLex, form, infosGram, lg, declaForm)
+				idForm = functionsmain.APIfunction.createForm(idLex, form, infosGram, lg, declaForm)
 				
 				# if there is an error while creating the form, I send an error and jump to the next form
-				if res==1:
+				if idForm==1:
 					fLog.write('erreur lexème "'+idlexxml+'" forme "'+idformxml+'" : erreur lors de la création de la forme\n')
 					err += 1
 					continue
 					
 				# if there is an error in setClaim creating the form, I send an error and jump to the next form
-				if res==2:
+				if idForm==2:
 					fLog.write('erreur lexème "'+idlexxml+'" forme "'+idformxml+'" : erreur dans la fonction setClaim lors de la création de la forme\n')
 					err += 1
 					continue
+					
+				fInputs.write(idformxml+"§"+idForm+"\n")
 				
 			print('--forme ', form, 'traitée\n') # trace
 
 	print('\nlexeme numéro', compteur, ':', lemme, 'traité') # trace
 
 fLog.close()
+fInputs.close()
 
 msg = 'Programme terminé'
 if err>0:
