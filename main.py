@@ -351,7 +351,7 @@ for lexeme in tei.xpath('.//form[@type="lemma"]'):
 					err += 1
 					continue
 					
-				fInputs.write(idformxml+"§"+idForm+"\n")
+				fInputs.write(idformxml+","+idForm+"\n")
 				
 			print('--forme ', form, 'traitée\n') # trace
 
